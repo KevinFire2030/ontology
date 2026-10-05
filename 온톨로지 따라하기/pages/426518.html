@@ -1,0 +1,155 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>08-2. 구성 1·2: 기본 RAG vs 검색·메타데이터 개선 RAG</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426518">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>08-2. 구성 1·2: 기본 RAG vs 검색·메타데이터 개선 RAG</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#2">구성 2가 바꾼 것</a></li>
+<li><a href="#_1">결과</a></li>
+<li><a href="#_2">새로 맞힌 질문</a></li>
+<li><a href="#_3">정답 개수에는 안 잡히지만 나아진 것</a></li>
+<li><a href="#_4">여전히 틀린 질문</a></li>
+<li><a href="#_5">이 결과가 말하는 것</a></li>
+<li><a href="#_6">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> ontology-tutorial 구성 1·2 실행 결과 기준 · PostgreSQL 16.2 + pgvector 0.6.2 · 수치는 모델·환경에 따라 달라지므로 경향에 주목</p>
+</blockquote>
+<p>첫 번째 비교입니다. 구성 1(기본 RAG)에서 검색만 바꾼 구성 2가 무엇을 더 맞히고 무엇을 여전히 못 맞히는지 봅니다. 온톨로지는 아직 없습니다. 이 절의 목적은 "검색 개선만으로 해결되는 오류"의 범위를 확인해서, 나중에 그 효과를 온톨로지의 효과로 잘못 읽지 않게 하는 것입니다.</p>
+<h3 id="2">구성 2가 바꾼 것</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>구성 1</th>
+<th>구성 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>검색 단위</td>
+<td>500자 청크 19개</td>
+<td>조·항 단위 조항 108개</td>
+</tr>
+<tr>
+<td>검색 방식</td>
+<td>벡터 유사도</td>
+<td>벡터 + 키워드 겹침, RRF로 합산</td>
+</tr>
+<tr>
+<td>메타데이터</td>
+<td>없음</td>
+<td>문서 제목과 유효기간을 조항 앞에 붙임</td>
+</tr>
+<tr>
+<td>유효 판 필터</td>
+<td>없음</td>
+<td>기준일에 유효하지 않은 판(1판) 제외</td>
+</tr>
+<tr>
+<td>상위 개수</td>
+<td>5</td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-python"># common/retrieval.py 발췌 — RRF: 각 순위 목록에서 1/(60+rank) 를 더한다
+def hybrid_search(question, k=8, valid_on=None):
+    vec = vector_search(question, k * 2, valid_on)
+    kw = keyword_search(question, k * 2, valid_on)
+    fused = {}
+    for lst in (vec, kw):
+        for rank, r in enumerate(lst):
+            fused[r["clause_id"]] = fused.get(r["clause_id"], 0) + 1 / (60 + rank)
+    ...
+</code></pre>
+<p>키워드 점수는 형태소 분석기 없이 어절의 앞 2~3글자 겹침을 세는 단순한 방식입니다. "환불되나요"와 "환불합니다"가 "환불"로 겹치는 정도면 충분했습니다.</p>
+<h3 id="_1">결과</h3>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>구성 1</th>
+<th>구성 2</th>
+<th>변화</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기준선</td>
+<td>3/3</td>
+<td>3/3</td>
+<td></td>
+</tr>
+<tr>
+<td>검색 R</td>
+<td>0/1</td>
+<td>0/1</td>
+<td></td>
+</tr>
+<tr>
+<td>데이터 D</td>
+<td>1/11</td>
+<td>2/11</td>
+<td>Q24</td>
+</tr>
+<tr>
+<td>의미 M</td>
+<td>1/4</td>
+<td>2/4</td>
+<td>Q03</td>
+</tr>
+<tr>
+<td>규칙 K</td>
+<td>6/11</td>
+<td>6/11</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>전체</strong></td>
+<td><strong>11/30</strong></td>
+<td><strong>13/30</strong></td>
+<td>+2</td>
+</tr>
+<tr>
+<td>토큰</td>
+<td>42,507</td>
+<td>37,632</td>
+<td>조항 단위라 컨텍스트가 오히려 줄어듦</td>
+</tr>
+</tbody>
+</table>
+<p>정답이 두 개 늘었고, 회귀(맞던 것이 틀림)는 없었습니다.</p>
+<h3 id="_2">새로 맞힌 질문</h3>
+<p><strong>Q03 "구독을 해지하면 남은 기간의 돈이 돌아오나요?"</strong> 구성 1은 환불 규정 청크만 가져와 환불 조건을 나열했습니다(01-1의 오답 1). 구성 2의 검색 결과는 다음과 같습니다.</p>
+<pre><code>ctx=['terms_of_service:1.2', 'faq:결제와 구독', 'refund_policy_v2:3', 'refund_policy_v2:4.4', 'refund_policy_v2:4']
+</code></pre>
+<p>약관 1조 2항(구독의 정의)과 FAQ의 "구독을 취소하고 싶어요" 항목이 들어왔습니다. 키워드 "해지"와 "구독"이 조항 단위에서 잡힌 것입니다. 답변은 "해지 자체로는 남은 기간의 금액이 반환되지 않습니다"로 시작해 정답이 되었습니다. 다만 그 뒤에 환불 조건을 여전히 나열합니다. 해지와 환불을 완전히 구분한 것은 아니고, 정의 조항이 우연히 앞에 온 덕입니다.</p>
+<p><strong>Q24 "고객 C012가 잔여 기간 환불을 요청했습니다"</strong> 구성 2는 환불 규정 4조 전체(제외 조항 포함)를 가져와 "이용약관 위반으로 계정이 정지된 경우 잔여 기간 환불이 불가합니다"라는 조건부 답을 냈습니다. C012가 정지 상태라는 사실은 여전히 모르지만, 핵심어(환불 불가, 정지)가 결론 문장에 들어 있어 정답으로 채점되었습니다. 데이터 없이 조건만 말한 답이므로 엄밀히는 반쪽 정답이며, 08-1에서 말한 "억울한 정답"의 예로 기억해 두겠습니다.</p>
+<h3 id="_3">정답 개수에는 안 잡히지만 나아진 것</h3>
+<p><strong>Q02는 두 구성 모두 3회 정답이지만 답의 질이 다릅니다.</strong> 구성 1은 1판(14일)과 2판(30일)을 함께 나열했고, 구성 2는 유효 판 필터 덕에 "30일 이내 전액 환불" 한 줄로 답했습니다. 옛 판을 함께 인용하는 답이 사라진 것은 정답 개수에 잡히지 않는 개선입니다.</p>
+<h3 id="_4">여전히 틀린 질문</h3>
+<p><strong>Q09 학생 요금제 준용은 검색이 잘 되어도 못 풉니다.</strong></p>
+<pre><code>ctx=['refund_policy_v2:6', 'refund_policy_v2:6.2', 'faq:학생 요금제', 'pricing_guide:할인과 프로모션', 'refund_policy_v2:6.1']
+</code></pre>
+<p>6조 전체와 6조 1항(준용 조항)이 검색되었습니다. 검색으로서는 최선입니다. 그런데 답변은 이렇습니다.</p>
+<pre><code>학생 요금제 연간 결제는 베이직 요금제의 환불 규정을 따릅니다.
+- 일반 환불: ... 참고 자료에는 연간 결제의 정확한 환불 가능 기간이 명시되어 있지 않습니다.
+</code></pre>
+<p>"베이직 규정을 따른다"는 것까지 읽었지만 4조(연간 구독)는 검색되지 않았으므로 30일을 말하지 못했습니다. 6조 1항에서 4조로 건너가는 것은 검색이 아니라 관계 탐색입니다. 이것이 의미 문제(M)가 검색 개선으로 풀리지 않는 가장 선명한 사례입니다.</p>
+<p><strong>Q30 인용 관계는 절반만 왔습니다.</strong> 운영 매뉴얼 6절(규정 변경 시 재점검)이 검색되어 답변이 "상담 스크립트와 FAQ의 관련 문구"까지 말했습니다. 그러나 "운영 매뉴얼 2절도 함께"라는 부분은 없습니다. FAQ와 매뉴얼 2절이 4조를 인용한다는 사실은 어느 문서에도 없기 때문입니다. 채점은 오답이지만 구성 1의 "목록이 없다"보다는 나아졌습니다.</p>
+<p><strong>데이터 문제 11개 중 9개는 그대로입니다.</strong> Q11, Q13, Q14, Q19 등은 여전히 "정보를 확인해야 한다"로 답합니다. 검색을 아무리 바꿔도 결제 테이블은 검색 대상이 아닙니다.</p>
+<h3 id="_5">이 결과가 말하는 것</h3>
+<ul>
+<li>검색 개선은 의미 문제 중 "정의 조항이 문서 안에 있는" 경우(Q03)를 풀고, "조항 사이를 건너가야 하는" 경우(Q09)는 못 풉니다.</li>
+<li>유효 판 필터는 정답 개수보다 답의 질(Q02)에 영향을 줍니다. 옛 판을 함께 인용하는 답이 사라집니다.</li>
+<li>데이터 문제는 검색으로 풀리지 않습니다. 11개 중 9개가 그대로입니다.</li>
+<li>비용은 늘지 않았습니다. 조항 단위가 500자 청크보다 짧아 토큰이 오히려 줄었습니다.</li>
+</ul>
+<p>02-3에서 말한 판단 순서의 첫 단계가 여기서 확인됩니다. 검색 개선은 싸고 회귀가 없으므로 항상 먼저 합니다. 그러나 그것으로 풀리는 오류는 30개 중 2개였고, 이 사례에서는 그 이상을 기대할 수 없습니다.</p>
+<h3 id="_6">정리</h3>
+<ul>
+<li>구성 2는 조항 단위·하이브리드·메타데이터·유효 판 필터로 11개에서 13개가 되었고 회귀는 없었습니다.</li>
+<li>새로 맞힌 것은 정의 조항이 검색된 Q03과 조건부 답이 채점을 통과한 Q24입니다.</li>
+<li>준용(Q09)과 인용(Q30)처럼 조항 사이를 건너가야 하는 질문, 그리고 데이터 문제 대부분은 그대로입니다.</li>
+<li>다음 절에서 정형 데이터 조회와 규칙 처리를 더한 구성 3을 봅니다.</li>
+</ul>
+</div></body></html>

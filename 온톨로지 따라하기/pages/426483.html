@@ -1,0 +1,201 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>02-2. DB 스키마와 온톨로지는 무엇이 다른가?</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426483">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>02-2. DB 스키마와 온톨로지는 무엇이 다른가?</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">같은 환불 규정을 두 가지로 적어 보기</a></li>
+<li><a href="#_2">스키마는 저장 구조, 온톨로지는 의미 구조</a></li>
+<li><a href="#_3">닫힌 세계와 열린 세계</a></li>
+<li><a href="#_4">둘이 만나는 지점</a></li>
+<li><a href="#_5">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 개념·설계 설명 — 예제는 ontology-tutorial 저장소의 노트클라우드 데이터 기준 (SQL 예시는 PostgreSQL 16.2에서 실행 확인)</p>
+</blockquote>
+<h3 id="_1">같은 환불 규정을 두 가지로 적어 보기</h3>
+<p>02-1의 구성 요소 설명을 읽고 "그거 ER 다이어그램 아닌가?"라고 생각하셨다면 정확한 반응입니다. 개념은 테이블, 개체는 행, 속성은 컬럼, 관계는 외래 키(foreign key)로 보입니다. 이 절은 그 유사성을 인정한 채로, 어디서 갈라지는지를 같은 규정으로 확인합니다.</p>
+<p>노트클라우드 환불 규정 제2판 3조 1항은 이렇습니다. "월간 구독은 결제 완료일로부터 7일 이내에 요청하고 미사용 상태인 경우 결제 금액 전액을 환불합니다." 이 한 문장에 답하는 데 필요한 정보를 먼저 테이블 DDL(Data Definition Language)로 적어 보겠습니다.</p>
+<pre><code class="language-sql">CREATE TABLE subscription (
+  id             text PRIMARY KEY,
+  customer_id    text NOT NULL REFERENCES customer(id),
+  plan_code      text NOT NULL,
+  billing_cycle  text NOT NULL CHECK (billing_cycle IN ('monthly', 'yearly')),
+  promo_code     text,
+  status         text NOT NULL
+);
+
+CREATE TABLE payment (
+  id               text PRIMARY KEY,
+  subscription_id  text NOT NULL REFERENCES subscription(id),
+  paid_at          date NOT NULL,
+  amount           integer NOT NULL,
+  is_renewal       boolean NOT NULL DEFAULT false
+);
+
+CREATE TABLE usage (
+  subscription_id  text NOT NULL REFERENCES subscription(id),
+  period_start     date NOT NULL,
+  docs_created     integer NOT NULL,
+  logins           integer NOT NULL,
+  PRIMARY KEY (subscription_id, period_start)
+);
+</code></pre>
+<p>이 스키마는 잘 만든 편입니다. 결제 주기 값이 두 가지로 제한되고, 사용량은 구독과 주기별로 하나씩만 존재합니다. 이제 같은 규정을 개념·관계 정의로 적어 보겠습니다. data/ontology/model.yaml과 glossary.yaml에서 발췌한 것입니다.</p>
+<pre><code class="language-yaml">concepts:
+  - id: Payment
+    definition: 구독 한 주기에 대한 대금 지불. 결제 완료일이 규정 적용과 환불 기간 계산의 기준일이다.
+  - id: Usage
+    definition: 한 결제 주기 동안의 문서 생성 수와 로그인 횟수. "미사용" 판정의 근거.
+
+terms:
+  - canonical: Unused
+    definition: 해당 결제 주기에 새로 생성한 문서 0건이고 로그인 3회 이하 (2판 2조 1항). 1판에는 정의가 없음.
+    note: 사용량 기록이 없으면 미사용이 아니라 "미확인"
+
+relations:
+  - id: has_usage
+    from: Subscription
+    to: Usage
+    note: 결제 주기마다 하나. 없으면 "미확인"이지 "미사용"이 아니다
+  - id: governed_by
+    from: Payment
+    to: PolicyVersion
+    derived: "payment.paid_at BETWEEN policy.valid_from AND policy.valid_to"
+</code></pre>
+<p>두 표현을 나란히 놓고 무엇이 어느 쪽에만 있는지 세어 보겠습니다.</p>
+<table>
+<thead>
+<tr>
+<th>정보</th>
+<th>DDL</th>
+<th>개념·관계 정의</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결제에 날짜와 금액이 있다</td>
+<td>있음(컬럼)</td>
+<td>있음(속성)</td>
+</tr>
+<tr>
+<td>사용량은 구독·주기별로 하나다</td>
+<td>있음(기본 키)</td>
+<td>있음(카디널리티)</td>
+</tr>
+<tr>
+<td>결제 주기는 월간·연간뿐이다</td>
+<td>있음(CHECK)</td>
+<td>있음(속성 정의)</td>
+</tr>
+<tr>
+<td>"미사용"이 무엇인지</td>
+<td>없음</td>
+<td>있음(문서 0건, 로그인 3회 이하)</td>
+</tr>
+<tr>
+<td>"미사용" 정의가 1판에는 없다는 사실</td>
+<td>없음</td>
+<td>있음</td>
+</tr>
+<tr>
+<td>결제 완료일이 규정 판을 정하는 기준일이다</td>
+<td>없음</td>
+<td>있음(governed_by)</td>
+</tr>
+<tr>
+<td>사용량 행이 없으면 어떻게 봐야 하는가</td>
+<td>없음(그냥 행이 없음)</td>
+<td>있음("미확인")</td>
+</tr>
+</tbody>
+</table>
+<p>위 DDL이 가진 정보는 개념·관계 정의에도 다 있지만, 반대는 성립하지 않습니다. 위 DDL에는 아래 네 가지 업무 정의가 명시되어 있지 않습니다. 적혀 있다면 개발자의 머릿속, 애플리케이션 코드의 if 문, 또는 운영 매뉴얼 1절의 표 안에 흩어져 있을 것입니다.</p>
+<h3 id="_2">스키마는 저장 구조, 온톨로지는 의미 구조</h3>
+<p>차이를 한 줄로 줄이면 이렇습니다. 스키마는 "데이터를 어떻게 넣고 꺼낼 것인가"에 답하고, 온톨로지는 "이 데이터가 업무에서 무엇을 뜻하는가"에 답합니다.</p>
+<p>스키마의 설계 목표는 저장의 정합성과 조회 성능입니다. 정규화(normalization)는 같은 사실이 두 곳에 저장되지 않게 하는 기술이고, 인덱스는 빨리 찾는 기술이며, 외래 키는 없는 구독을 가리키는 결제가 생기지 않게 하는 기술입니다. 모두 "저장된 것"에 대한 규칙입니다.</p>
+<p>온톨로지의 설계 목표는 해석의 정합성입니다. 다른 사람, 다른 문서, 다른 프로그램이 같은 데이터를 보고 같은 결론에 이르게 하는 것입니다. usage.docs_created 컬럼 값 0을 보고 상담원 A는 "미사용"이라 하고 상담원 B는 "로그인 5회면 사용한 것"이라고 한다면 스키마는 아무 잘못이 없지만 의미 층이 비어 있는 것입니다.</p>
+<p>이 차이는 외래 키에서 가장 잘 드러납니다. payment.subscription_id가 subscription.id를 참조한다는 외래 키는 "이 결제는 이 구독의 것"이라는 관계 하나만 표현합니다. 그런데 노트클라우드 모델에서 결제와 구독의 관계는 paid_by 하나가 아닙니다. 결제는 규정 판에 governed_by로 연결되고, 그 연결의 기준이 결제 완료일이라는 규칙이 있고, 자동 갱신 결제는 갱신일을 기준으로 삼는다는 예외(약관 3조 3항)가 있습니다. 외래 키는 "가리킨다"는 한 가지 뜻뿐이지만 관계에는 이름과 방향과 정의가 있습니다. 조항과 조항 사이의 supersedes(대체한다), applies_mutatis_mutandis(준용한다), cites(인용한다)를 외래 키 세 개로 만들 수는 있어도, 세 외래 키가 서로 어떻게 다른지는 스키마가 말해 주지 않습니다.</p>
+<h3 id="_3">닫힌 세계와 열린 세계</h3>
+<p>두 층이 갈라지는 지점 하나를 더 짚어야 합니다. 관계형 데이터베이스는 닫힌 세계 가정(Closed World Assumption, CWA) 위에 서 있습니다. "테이블에 없으면 사실이 아니다"라는 가정입니다. 온톨로지, 특히 표준 온톨로지 언어의 추론은 열린 세계 가정(Open World Assumption, OWA)을 따릅니다. "적혀 있지 않으면 모르는 것이다"라는 가정입니다.</p>
+<p>01-3의 질문 Q19가 이 차이를 정확히 보여 줍니다. 고객 C007은 2025-09-02에 월간 결제를 했고 환불을 요청했습니다. 6일 경과라 기간 요건은 충족합니다. 그런데 data/structured/usage.csv에 C007의 구독 S007 행이 의도적으로 빠져 있습니다. 사용량 조회를 SQL로 짜면 자연스럽게 이런 모양이 됩니다.</p>
+<pre><code class="language-sql">SELECT p.payment_id,
+       COALESCE(u.docs_created, 0) = 0 AND COALESCE(u.logins, 0) &lt;= 3 AS unused
+FROM payments p
+LEFT JOIN usage_stats u ON u.subscription_id = p.subscription_id
+                       AND u.period_start = p.paid_at
+WHERE p.subscription_id = 'S007';
+</code></pre>
+<p>6장의 테이블에서 실제로 실행한 결과입니다. COALESCE를 쓰면 True, 빼면 NULL이 나옵니다.</p>
+<pre><code>COALESCE 사용:  [('P0008', True)]
+COALESCE 제거:  [('P0008', None)]
+</code></pre>
+<p>첫 번째 쿼리는 unused = true 를 돌려줍니다. 이 쿼리는 COALESCE로 결측값을 0으로 대체하므로 미사용으로 오판합니다. 행이 없다는 사실을 0건·0회로 바꾼 것은 쿼리가 택한 구현 정책이지, 닫힌 세계 가정이 결측 수치를 자동으로 0으로 만드는 것은 아닙니다. 실제로 PostgreSQL 16의 집계 함수는 빈 입력에 대해 COUNT만 0을 돌려주고 SUM·AVG·MAX 등은 NULL을 돌려줍니다(<a href="https://www.postgresql.org/docs/16/functions-aggregate.html">PostgreSQL 16 집계 함수 문서</a>). 그래서 파이프라인은 "전액 환불"이라고 답하고, 채점표는 이 답을 오답으로 처리합니다. 정답은 "사용량을 확인할 수 없어 결론을 보류한다"이기 때문입니다. 운영 매뉴얼 1절도 "하나라도 확인되지 않으면 결론을 내리지 않는다"고 못 박고 있습니다.</p>
+<p>열린 세계에서는 S007의 사용량이 "없다"가 아니라 "알려지지 않았다"입니다. 모델의 has_usage 관계에 붙은 note("없으면 미확인이지 미사용이 아니다")가 바로 이 태도입니다. 위 SQL을 고치는 것 자체는 어렵지 않습니다. COALESCE를 빼고 NULL을 그대로 흘려 보내면 됩니다. 문제는 그 판단을 누가 어디에 적어 두느냐입니다. 쿼리를 짜는 개발자마다 다르게 결정하면 같은 데이터에서 다른 답이 나옵니다. "사용량이 없는 것과 모르는 것은 다르다"는 문장은 데이터가 아니라 의미이고, 의미 층에 한 번 적어 두면 6장의 스키마(NULL 허용 여부), 7장의 규칙 평가(requires 항목이 unknown이면 hold), 답변 형식(미확인 사항 표시)이 모두 그 한 문장을 따르게 됩니다.</p>
+<p>다만 열린 세계가 항상 옳은 것도 아닙니다. 계정 상태 컬럼이 active라면 "C012는 정지되지 않았다"고 닫힌 세계로 읽어야 합니다. 우리 시스템이 그 정보의 유일한 출처이기 때문입니다. 어느 데이터를 닫힌 세계로, 어느 데이터를 열린 세계로 다룰지 경계를 정하는 것 역시 의미 모델의 일입니다. 노트클라우드에서는 계정 상태·결제·구독은 닫힌 세계로, 사용량·학생 인증·요청자 역할은 확인이 필요한 열린 세계로 다룹니다.</p>
+<h3 id="_4">둘이 만나는 지점</h3>
+<p>스키마와 온톨로지는 경쟁 관계가 아닙니다. 이 책은 온톨로지를 PostgreSQL 안에 구현하므로, 결국 온톨로지는 스키마에 의미를 얹는 형태로 존재합니다. 얹는 방법은 가벼운 것부터 무거운 것까지 여러 단계가 있습니다.</p>
+<div class="ad-wrapper markdown_tags">
+<script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"></script>
+<!-- markdown_tags -->
+<ins class="adsbygoogle" data-ad-client="ca-pub-9470517771012578" data-ad-format="false" data-ad-slot="4124294444" data-full-width-responsive="false" style="display:inline-block;width:300px;height:250px"></ins>
+<script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+</div>
+<table>
+<thead>
+<tr>
+<th>방법</th>
+<th>어디에 적는가</th>
+<th>담을 수 있는 의미</th>
+<th>한계</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>컬럼·테이블 주석</td>
+<td>COMMENT ON 구문</td>
+<td>"paid_at은 규정 적용 기준일" 같은 정의</td>
+<td>사람만 읽음. 프로그램이 활용하기 어려움</td>
+</tr>
+<tr>
+<td>용어 사전 테이블</td>
+<td>glossary 테이블</td>
+<td>표준 용어, 표현 변형, 출처, 혼동 주의</td>
+<td>용어 간 관계는 표현 못 함</td>
+</tr>
+<tr>
+<td>관계 테이블</td>
+<td>clause_relation 같은 테이블(from, to, 관계 유형)</td>
+<td>준용·대체·인용처럼 이름 있는 관계</td>
+<td>관계 유형의 뜻은 별도 정의 필요</td>
+</tr>
+<tr>
+<td>유효기간 컬럼</td>
+<td>valid_from, valid_to</td>
+<td>시점에 따른 적용 여부</td>
+<td>겹치는 기간 처리는 규칙이 필요</td>
+</tr>
+<tr>
+<td>CHECK·트리거</td>
+<td>제약 조건</td>
+<td>"팀 요청자는 관리자여야 한다" 같은 제약</td>
+<td>복잡한 조건은 규칙 엔진으로</td>
+</tr>
+<tr>
+<td>모델 파일</td>
+<td>model.yaml, glossary.yaml</td>
+<td>위 전부를 한 곳에</td>
+<td>DB와 동기화가 필요</td>
+</tr>
+</tbody>
+</table>
+<p>가장 가벼운 방법인 주석만으로도 효과가 있습니다. 컬럼 주석에 "결제 완료일. 계약 성립일이자 환불 기간·적용 규정 판의 기준일(약관 2조 2항)"이라고 적어 두면 6개월 뒤 다른 개발자가 그 컬럼의 뜻을 오해할 확률이 크게 줄어듭니다. 용어 사전 테이블은 7장에서 LLM이 질문의 "구독 취소"를 CancellationRequest로 정규화할 때 직접 조회하는 데이터가 됩니다. 관계 테이블은 Q09의 준용 관계와 Q30의 인용 관계를 저장하며, 6-1에서 개념별 전용 테이블·범용 트리플 테이블·혼합 방식을 비교합니다.</p>
+<p>스키마만 있는 상태는 의미가 사람의 머릿속에 있는 상태이고, 온톨로지를 얹은 상태는 그 의미가 데이터베이스 안에 데이터로 있는 상태입니다. 어디까지 얹을지는 02-3의 질문, "그래서 우리에게 필요한가"에 달려 있습니다.</p>
+<h3 id="_5">정리</h3>
+<ul>
+<li>같은 환불 규정을 DDL과 개념·관계 정의로 적으면, 위 DDL이 담은 정보는 개념·관계 정의에도 모두 있지만 "미사용"의 정의나 결제일이 기준일이라는 사실은 그 DDL에 명시되어 있지 않습니다. 주석·CHECK·관계 테이블로 얹을 수는 있으며, 그 방법은 이 절 뒤쪽 표에 있습니다.</li>
+<li>스키마는 저장의 정합성을, 온톨로지는 해석의 정합성을 목표로 합니다. 외래 키는 "가리킨다" 하나지만 관계에는 이름·방향·정의가 있습니다.</li>
+<li>위 예제 쿼리는 COALESCE로 없는 사용량을 0으로 채워 Q19를 오판합니다. 결측을 0으로 볼지 모름으로 볼지는 쿼리가 택한 정책이며, "없음"과 "모름"의 경계를 어디에 적어 둘 것인가가 의미 모델의 일입니다.</li>
+<li>온톨로지는 주석·용어 사전·관계 테이블·유효기간 컬럼으로 스키마 위에 얹을 수 있으며, 그 구현은 6장에서 다룹니다. 다음 02-3에서는 얹을 필요가 있는지 판단하는 기준을 세웁니다.</li>
+</ul>
+</div></body></html>

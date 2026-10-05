@@ -1,0 +1,242 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>05-3. 근거 연결: 어떤 문서의 어느 조항이 답을 뒷받침하는가</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426501">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>05-3. 근거 연결: 어떤 문서의 어느 조항이 답을 뒷받침하는가</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">조항 단위로 문서 쪼개기</a></li>
+<li><a href="#_2">개념·규칙과 조항의 연결</a></li>
+<li><a href="#_3">답변에 근거를 붙이는 형식</a></li>
+<li><a href="#_4">근거가 없는 답을 걸러내기</a></li>
+<li><a href="#_5">규정이 바뀌면 인용하는 문서를 재점검한다</a></li>
+<li><a href="#_6">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/rules.yaml 기준</p>
+</blockquote>
+<p>상담원이 고객에게 "환불이 안 됩니다"라고만 말하면 고객은 "어디에 그렇게 써 있나요"라고 묻습니다. AI 답변도 마찬가지입니다. 결론에 근거 조항이 붙어 있어야 사람이 검토할 수 있고, 규정이 바뀌었을 때 어떤 답변이 영향을 받는지 찾을 수 있습니다. 이 절은 문서를 조항 단위로 쪼개고, 개념·규칙과 조항을 연결하고, 답변에 근거를 붙이는 형식을 정합니다.</p>
+<h3 id="_1">조항 단위로 문서 쪼개기</h3>
+<p>기본 RAG는 문서를 글자 수 기준으로 잘라 청크(chunk)로 만듭니다. 그 방식으로는 "제2판 4조 2항"이라는 단위가 남지 않습니다. 근거를 연결하려면 문서의 논리 구조, 곧 조와 항을 단위로 잘라야 합니다.</p>
+<p>노트클라우드 문서 6종은 조항 id 를 다음 체계로 붙였습니다.</p>
+<table>
+<thead>
+<tr>
+<th>문서</th>
+<th>doc_id</th>
+<th>조항 id 예</th>
+<th>단위</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>환불 규정 제1판</td>
+<td>refund_policy_v1</td>
+<td>refund_policy_v1:3.2</td>
+<td>조.항</td>
+</tr>
+<tr>
+<td>환불 규정 제2판</td>
+<td>refund_policy_v2</td>
+<td>refund_policy_v2:4.2</td>
+<td>조.항</td>
+</tr>
+<tr>
+<td>이용약관</td>
+<td>terms_of_service</td>
+<td>terms_of_service:9.3</td>
+<td>조.항</td>
+</tr>
+<tr>
+<td>운영 매뉴얼</td>
+<td>ops_manual</td>
+<td>ops_manual:2.2, ops_manual:1</td>
+<td>절.번호, 항이 없으면 절</td>
+</tr>
+<tr>
+<td>요금 안내</td>
+<td>pricing_guide</td>
+<td>pricing_guide:팀 요금제 좌석</td>
+<td>절 제목</td>
+</tr>
+<tr>
+<td>FAQ</td>
+<td>faq</td>
+<td>faq:결제와 구독</td>
+<td>절 제목</td>
+</tr>
+</tbody>
+</table>
+<p>규정과 약관처럼 조·항 번호가 있는 문서는 번호를 그대로 씁니다. 운영 매뉴얼처럼 절 안에 번호 목록이 있으면 "절.번호"로, 요금 안내와 FAQ처럼 번호가 없으면 절 제목을 id 로 씁니다. id 는 사람이 읽고 바로 원문을 찾을 수 있어야 하므로, 해시값이나 일련번호보다 문서 구조를 드러내는 형태가 낫습니다.</p>
+<p>조항 하나가 하나의 Clause 개체가 됩니다. model.yaml 은 Clause 를 "규정 판 안의 조·항 단위 규정 텍스트, 답변의 근거 단위"로 정의하고 clause_no 와 text 속성을 두었습니다. 6-3에서 이 개체가 clauses 테이블의 행이 되고, text 에 임베딩을 붙여 벡터 검색과 관계 조회를 한 쿼리로 묶습니다.</p>
+<p>쪼갤 때 주의할 점이 두 가지 있습니다. 첫째, 항이 다른 항을 전제할 때가 있습니다. 제2판 4조 4항("잔여 기간은 요청일 다음 날부터")은 4조 2항 없이는 의미가 없습니다. 이런 항은 조항 텍스트에 상위 조 제목을 함께 넣어 검색 시 문맥이 남게 합니다. 둘째, 표는 행 단위로 쪼개지 않습니다. 운영 매뉴얼 3절의 승인 권한 표는 ops_manual:3 하나로 두고, 규칙(approval_authority)이 표 전체를 근거로 가리킵니다.</p>
+<h3 id="_2">개념·규칙과 조항의 연결</h3>
+<p>조항을 개체로 만들었으면 다른 것들과 연결합니다. 연결은 두 층에서 일어납니다.</p>
+<p>첫째 층은 model.yaml 의 관계입니다. 조항과 조항, 조항과 규정 판, 조항과 요청 종류 사이의 관계를 정의합니다.</p>
+<table>
+<thead>
+<tr>
+<th>관계</th>
+<th>방향</th>
+<th>뜻</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>part_of</td>
+<td>Clause → PolicyVersion</td>
+<td>조항이 어느 판에 속하는가</td>
+<td>refund_policy_v2:4.1 → refund_policy_v2</td>
+</tr>
+<tr>
+<td>supersedes</td>
+<td>Clause → Clause</td>
+<td>새 판 조항이 옛 판 조항을 대체한다</td>
+<td>2판 4조 1항 → 1판 3조 1항</td>
+</tr>
+<tr>
+<td>applies_mutatis_mutandis</td>
+<td>Clause → Clause</td>
+<td>한 조항이 다른 조항을 준용한다</td>
+<td>2판 6조 1항 → 2판 3조·4조</td>
+</tr>
+<tr>
+<td>cites</td>
+<td>Clause → Clause</td>
+<td>FAQ·매뉴얼 항목이 규정 조항을 인용한다</td>
+<td>faq:결제와 구독 → 2판 3조 1항·4조 1항</td>
+</tr>
+<tr>
+<td>governs</td>
+<td>Clause → CustomerRequest</td>
+<td>조항이 어떤 요청 종류를 다루는가</td>
+<td>2판 3조 → RefundRequest</td>
+</tr>
+</tbody>
+</table>
+<p>준용(準用, mutatis mutandis)은 "필요한 부분을 바꾸어 그대로 적용한다"는 뜻으로, 규정 문서에서 자주 쓰이는 참조 방식입니다. 학생 요금제를 연간으로 결제한 고객의 환불 기준(Q09)을 답하려면 6조 1항에서 출발해 준용 관계를 따라 4조 1항·2항까지 가야 합니다. 기본 RAG는 "학생"으로 검색해 6조만 찾고 "베이직 규정을 준용합니다"에서 멈추기 쉽습니다. 관계가 있으면 6조 1항을 찾은 순간 4조까지 함께 가져올 수 있습니다.</p>
+<p>둘째 층은 rules.yaml 의 evidence 입니다. 규칙 하나가 결론을 낼 때 어떤 조항을 근거로 삼는지 적습니다.</p>
+<pre><code class="language-yaml">- id: yearly_prorated_refund
+  when: [request_type == Refund, billing_cycle == yearly,
+         days_since_payment &gt; full_refund_days]
+  result: "일할 환불 (1판: 위약금 10% 공제 / 2판: 위약금 없음, 연간 할인분 사용 비례 환수)"
+  evidence: [refund_policy_v2:4.2, refund_policy_v2:4.4, refund_policy_v1:3.2]
+</code></pre>
+<p>evidence 에 두 판의 조항이 함께 들어 있는 것에 주목하세요. 규칙은 판을 가리지 않고 "연간 구독 일할 환불"이라는 판단을 표현하고, 어느 판의 조항이 실제 근거가 되는지는 05-2의 판 선택 결과에 따라 실행 시점에 고릅니다. 답변에는 선택된 판의 조항만 인용합니다.</p>
+<p>두 층의 역할 분담을 그림으로 그리면 다음과 같습니다.</p>
+<pre><code>model.yaml (의미)                 rules.yaml (판단)
+┌──────────────────────┐         ┌──────────────────────┐
+│ Clause ─part_of─→ PolicyVersion│  │ rule.evidence ──→ Clause id │
+│ Clause ─supersedes─→ Clause   │  │ hold_policy.evidence → ops_manual:1 │
+│ Clause ─applies_mutatis_mutandis─→ Clause │  │ version_selection.evidence → terms_of_service:9.3 │
+│ Clause ─cites─→ Clause        │  └──────────────────────┘
+└──────────────────────┘
+          ↑ 조항 사이의 구조                  ↑ 결론과 조항의 연결
+</code></pre>
+<h3 id="_3">답변에 근거를 붙이는 형식</h3>
+<p>근거가 연결되어 있어도 답변 형식이 자유 서술이면 LLM은 근거를 빠뜨리거나 조항 번호를 지어냅니다. 이 책은 답변을 네 부분으로 고정합니다.</p>
+<table>
+<thead>
+<tr>
+<th>부분</th>
+<th>내용</th>
+<th>어디서 오는가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결론</td>
+<td>환불 가능 여부, 금액, 처리 방식</td>
+<td>규칙의 result 와 계산값</td>
+</tr>
+<tr>
+<td>적용 조건</td>
+<td>결론이 성립하는 데 쓰인 사실(결제일, 경과 일수, 사용량, 적용 판)</td>
+<td>규칙의 when 에 대입된 값</td>
+</tr>
+<tr>
+<td>근거 조항</td>
+<td>조항 id 와 원문 요지</td>
+<td>규칙의 evidence 가 가리키는 Clause</td>
+</tr>
+<tr>
+<td>미확인 사항</td>
+<td>확인하지 못해 결론에 영향을 줄 수 있는 것</td>
+<td>규칙의 requires 중 unknown(05-4)</td>
+</tr>
+</tbody>
+</table>
+<p>C004의 오늘 환불 요청(Q14)을 이 형식으로 쓰면 다음과 같습니다.</p>
+<pre><code>[결론] 약 131,332원을 환불합니다. 제2판 4조 2항을 적용합니다.
+[적용 조건] 결제 완료일 2025-06-20(제1판 대상), 요청일 2025-09-08,
+  경과 80일로 전액 환불 기간 경과. 제1판 계산 125,349원, 제2판 계산 131,332원.
+  제2판이 유리하므로 약관 9조 3항 적용.
+[근거 조항] terms_of_service:9.3 (유리한 규정 적용),
+  refund_policy_v2:4.2 (연간 일할 환불, 할인분 환수),
+  refund_policy_v2:4.4 (잔여 기간 계산 방식),
+  ops_manual:2.2 (약관 9조 3항 적용 기록)
+[미확인 사항] 없음
+</code></pre>
+<p>이 형식은 questions.yaml 의 evidence 목록과 그대로 대응하도록 만들었습니다. 다만 3-4의 평가 도구가 지금 하는 일은 여기까지 미치지 못합니다. 현재는 key_facts 에 넣어 둔 핵심어로 근거 언급을 간접 확인할 뿐이고, 답변이 인용한 조항과 정답의 evidence 를 자동으로 대조하지는 않습니다. 답변 문장에서 조항 ID를 뽑아내는 함수(ch07/pipeline.py 의 cited_clauses)는 이미 있으므로, 그 결과를 evidence 와 견주는 대조기를 붙이는 것은 독자가 해 볼 만한 확장 과제입니다. 형식의 구현은 7-4에서 다룹니다.</p>
+<h3 id="_4">근거가 없는 답을 걸러내기</h3>
+<p>근거를 형식에 넣었다고 끝이 아닙니다. LLM이 조항 id 를 그럴듯하게 만들어 낼 수 있기 때문입니다. 걸러내는 검사는 세 단계입니다.</p>
+<div class="ad-wrapper markdown_tags">
+<script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"></script>
+<!-- markdown_tags -->
+<ins class="adsbygoogle" data-ad-client="ca-pub-9470517771012578" data-ad-format="false" data-ad-slot="4124294444" data-full-width-responsive="false" style="display:inline-block;width:300px;height:250px"></ins>
+<script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+</div>
+<ol>
+<li>존재 검사: 답변의 조항 id 가 clauses 테이블에 실제로 있는가. 없으면 답변을 반려합니다.</li>
+<li>유효성 검사: 인용한 조항이 적용 판에 속하는가(part_of). 제1판 대상인데 제2판 조항만 인용했다면 05-2의 유리한 규정 적용이 기록되어 있어야 합니다.</li>
+<li>정합성 검사: 결론을 낸 규칙의 evidence 와 답변의 근거 조항이 일치하는가. 규칙이 정한 근거 밖의 조항을 인용하면 사람 검토로 넘깁니다.</li>
+</ol>
+<p>세 검사를 통과하지 못한 답변은 "근거를 확인할 수 없어 답변을 보류합니다"로 바꾸어 냅니다. 이 처리는 05-4의 보류 답변과 같은 경로를 씁니다.</p>
+<h3 id="_5">규정이 바뀌면 인용하는 문서를 재점검한다</h3>
+<p>근거 연결은 답변을 뒷받침하는 데 그치지 않습니다. 반대 방향으로 따라가면 "이 조항이 바뀌면 무엇을 다시 봐야 하는가"가 나옵니다. 환불 규정 4조가 개정되면 함께 점검할 문서와 절차를 묻는 질문(Q30)이 그것입니다.</p>
+<p>cites 관계를 거꾸로 따라가면 FAQ의 "결제하고 바로 환불받을 수 있나요" 항목이 4조 1항을 인용하고 있고, 운영 매뉴얼 2절 2항이 "연간 전액 환불 기간 30일"을 유리 조항의 예로 들고 있습니다. 운영 매뉴얼 6절은 재점검 절차 자체를 규정합니다. rules.yaml 에서 evidence 에 refund_policy_v2:4.x 를 가진 규칙(yearly_full_refund, yearly_prorated_refund, promo_v2_window_only 의 참조 대상)도 점검 대상입니다. 기본 RAG는 이 질문에서 검색 문제(R)를 보였습니다. "4조 개정"이라는 말로 운영 매뉴얼과 FAQ를 찾아낼 방법이 없기 때문입니다. 관계로 연결해 두면 조회 한 번으로 목록이 나옵니다.</p>
+<table>
+<thead>
+<tr>
+<th>출발 조항</th>
+<th>따라간 관계</th>
+<th>도착</th>
+<th>점검 내용</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>refund_policy_v2:4.1</td>
+<td>cites 역방향</td>
+<td>faq:결제와 구독</td>
+<td>"환불 가능 기간이 더 길어요" 문구</td>
+</tr>
+<tr>
+<td>refund_policy_v2:4.1</td>
+<td>cites 역방향</td>
+<td>ops_manual:2.2</td>
+<td>유리 조항 예시</td>
+</tr>
+<tr>
+<td>refund_policy_v2:4.2</td>
+<td>rules.evidence 역방향</td>
+<td>yearly_prorated_refund</td>
+<td>공식과 params</td>
+</tr>
+<tr>
+<td>refund_policy_v2:4.1</td>
+<td>applies_mutatis_mutandis 역방향</td>
+<td>refund_policy_v2:6.1</td>
+<td>학생 연간 결제 안내</td>
+</tr>
+</tbody>
+</table>
+<p>이 역방향 탐색은 9-1에서 그래프 탐색이 유리한 질문 유형의 예로 다시 등장하고, 11-2에서 재점검 대상 목록 생성으로 구현됩니다.</p>
+<h3 id="_6">정리</h3>
+<ul>
+<li>문서를 글자 수가 아니라 조·항 단위로 쪼개고, 문서 구조가 드러나는 id(refund_policy_v2:4.2, ops_manual:2.2)를 붙입니다. 조항 하나가 Clause 개체 하나입니다.</li>
+<li>연결은 두 층입니다. model.yaml 은 조항 사이의 구조(part_of, supersedes, applies_mutatis_mutandis, cites, governs)를, rules.yaml 의 evidence 는 결론과 조항의 연결을 맡습니다.</li>
+<li>답변은 결론, 적용 조건, 근거 조항, 미확인 사항 네 부분으로 고정하고, 조항 id 의 존재·유효성·정합성을 검사해 근거 없는 답을 걸러냅니다.</li>
+<li>관계를 거꾸로 따라가면 규정 개정 시 재점검할 문서와 규칙 목록이 나옵니다. 구현은 6-3(조항 테이블)과 7-4(답변 형식), 11-2(재점검 목록)에서 이어집니다.</li>
+</ul>
+</div></body></html>

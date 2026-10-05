@@ -1,0 +1,7 @@
+# Preserve original HTTP bytes and asset checksums across platforms.
+*.md text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+pages/** text eol=lf
+originals/** -text
+assets/** -text

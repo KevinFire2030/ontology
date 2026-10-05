@@ -1,0 +1,228 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>04-3. 개념 계층과 관계 정의하기</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426495">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>04-3. 개념 계층과 관계 정의하기</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">상위·하위 개념 나누기</a></li>
+<li><a href="#_2">관계 유형: 소유·적용·참조·시점</a></li>
+<li><a href="#_3">방향과 카디널리티 붙이기</a></li>
+<li><a href="#_4">파생 관계는 저장하지 않는다</a></li>
+<li><a href="#_5">너무 세밀해지는 것을 막는 기준</a></li>
+<li><a href="#_6">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/ 기준</p>
+</blockquote>
+<p>04-1에서 뽑은 개념 후보와 04-2에서 정리한 용어를 이제 구조로 묶습니다. 구조는 두 가지입니다. 어떤 개념이 어떤 개념의 한 종류인가(계층), 그리고 어떤 개념이 어떤 개념과 어떻게 이어지는가(관계)입니다. 이 절의 결과가 data/ontology/model.yaml 의 subtypes 필드와 relations 목록입니다.</p>
+<h3 id="_1">상위·하위 개념 나누기</h3>
+<p>하위 개념을 두는 기준은 하나입니다. 규정이 다르게 적용되거나 답이 달라질 때만 나눕니다. 노트클라우드 모델에서 계층이 생긴 곳은 세 군데입니다.</p>
+<pre><code>Customer (고객)
+├── IndividualCustomer (개인)
+└── TeamCustomer (팀)           ← 요청자가 관리자인지 확인, 좌석 규칙 적용
+
+Incident (서비스 중단)
+├── Outage (장애)               ← 회사 책임, 24시간 이상이면 크레딧
+└── PlannedMaintenance (정기 점검) ← 공지된 점검, 보상 없음 (약관 7조 2항)
+
+CustomerRequest (고객 요청)
+├── RefundRequest (환불 요청)          ← 환불 규정 적용, 금액 반환
+├── CancellationRequest (해지 요청)    ← 다음 주기부터 갱신 중단, 반환 없음
+├── PaymentReversalRequest (결제 취소 요청) ← 24시간 이내, 환불 규정 미적용
+└── SeatChangeRequest (좌석 변경 요청)  ← 다음 주기 반영, 차액 환불 없음
+</code></pre>
+<p>세 계층은 근거가 다릅니다. Customer 의 하위 둘은 약관 8조(팀 관리자만 요청 가능)와 환불 규정 5조(좌석) 때문에 생겼습니다. Incident 의 하위 둘은 약관 7조 2항 한 줄 때문에 생겼습니다. CustomerRequest 의 하위 넷은 약관 4조가 해지·환불·결제 취소를 일부러 구분하기 때문에 생겼고, 여기에 좌석 변경이 규정 5조에 별도 조항으로 있어서 넷이 됐습니다.</p>
+<p>model.yaml 을 보면 하위 개념 가운데 RefundRequest, CancellationRequest, PaymentReversalRequest 세 개만 자기 정의(definition)를 가진 개념 항목으로 따로 적혀 있고, IndividualCustomer 나 Outage 는 상위 개념의 subtypes 목록에 이름만 있습니다. 이 차이는 의도한 것입니다. 앞의 셋은 04-2에서 본 대로 고객이 늘 섞어 쓰는 말이라 정의를 따로 못 박아야 했고, 뒤의 것들은 상위 개념의 속성 하나(customer_type, is_planned_maintenance)로 구분이 끝나기 때문입니다. 정의 문장이 상위 개념과 다르지 않다면 굳이 항목을 늘리지 않습니다.</p>
+<h3 id="_2">관계 유형: 소유·적용·참조·시점</h3>
+<p>관계 13개를 역할별로 묶으면 네 유형입니다.</p>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>뜻</th>
+<th>관계 id</th>
+<th>근거</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>소유(구성)</td>
+<td>무엇이 무엇을 가진다, 무엇에 속한다</td>
+<td>has_subscription, member_of, subscribes_plan, paid_by, has_usage, part_of, requested_by</td>
+<td>약관 1조·2조·8조</td>
+</tr>
+<tr>
+<td>적용</td>
+<td>어떤 규정이 무엇을 다스린다</td>
+<td>governed_by, governs</td>
+<td>약관 2조 2항, 운영 매뉴얼 2절</td>
+</tr>
+<tr>
+<td>참조</td>
+<td>조항이 다른 조항을 가리킨다</td>
+<td>supersedes, applies_mutatis_mutandis, cites</td>
+<td>규정 2판 머리말, 6조 1항, FAQ</td>
+</tr>
+<tr>
+<td>시점(파생)</td>
+<td>저장하지 않고 날짜 비교로 계산한다</td>
+<td>governed_by, affected_by</td>
+<td>약관 2조 2항, 규정 8조 1항</td>
+</tr>
+</tbody>
+</table>
+<p>governed_by 가 두 유형에 걸쳐 있는 것은 우연이 아닙니다. "결제에 어느 규정 판이 적용되는가"는 적용 관계이면서, 그 답이 결제 완료일과 규정 판 유효기간의 비교로 결정되는 시점 관계이기도 합니다.</p>
+<p>전체를 한 그림으로 보면 다음과 같습니다. 화살표 방향이 관계의 from 에서 to 입니다.</p>
+<pre><code>TeamMember ──member_of──▶ Customer ──has_subscription──▶ Subscription ──subscribes_plan──▶ Plan
+     ▲                                                     │  │  │
+     │ requested_by                                        │  │  └──has_usage──▶ Usage
+     │                                                     │  └──affected_by (파생)──▶ Incident ──▶ Credit
+CustomerRequest                                            └──paid_by──▶ Payment
+     ▲                                                                       │ governed_by (파생)
+     │ governs                                                               ▼
+   Clause ──part_of──▶ PolicyVersion                                    PolicyVersion
+     │
+     ├──supersedes──▶ Clause         (2판 4조 1항 → 1판 3조 1항)
+     ├──applies_mutatis_mutandis──▶ Clause   (2판 6조 1항 → 3조·4조)
+     └──cites──▶ Clause              (FAQ·운영 매뉴얼 항목 → 규정 조항)
+
+ApprovalAuthority   (관계 없음: 환불 금액 구간으로 조회하는 참조 표)
+Unused              (관계 없음: Usage 에서 계산되는 파생 개념, derived_from: Usage)
+Seat                (관계 없음: 약관 1조 4항의 정의 용어. 실제 값은 Subscription.seats)
+</code></pre>
+<p>Incident 에서 Credit 으로 가는 화살표는 model.yaml 에 관계로 적혀 있지 않습니다. 크레딧 금액은 장애 시간과 요금으로 계산되는 규칙의 결과이지 저장된 연결이 아니기 때문입니다. ApprovalAuthority 도 어느 개념과도 관계가 없습니다. 환불 금액이 정해진 뒤 구간을 찾아보는 참조 표이지, 고객이나 요청이 "소유"하는 것이 아닙니다. Unused 와 Seat 도 관계가 없습니다. Unused 는 사용량 두 속성으로 판정되는 상태라 derived_from 으로 원천만 적었고, Seat 는 좌석 하나하나를 추적하는 질문이 없어서 개념 정의만 두고 실제 값은 Subscription.seats 속성에 맡겼습니다. 관계 없는 개념이 있어도 괜찮습니다. 억지로 이어 붙이면 뒤에 SQL 조인이 늘어날 뿐입니다.</p>
+<h3 id="_3">방향과 카디널리티 붙이기</h3>
+<p>관계에는 방향과 카디널리티(cardinality, 양쪽에 몇 개씩 이어지는가)를 반드시 적습니다. 6장에서 외래 키를 어느 테이블에 둘지, 조인 테이블이 필요한지가 여기서 결정됩니다.</p>
+<p>방향은 "읽었을 때 자연스러운 주어에서 목적어로" 정합니다. "고객이 구독을 가진다"이므로 has_subscription 은 Customer 에서 Subscription 으로 갑니다. "구성원이 팀에 속한다"이므로 member_of 는 TeamMember 에서 Customer 로 갑니다. 방향을 뒤집어도 정보는 같지만, 이름과 방향이 어긋나면 LLM이 프롬프트를 읽을 때 반대로 해석합니다. 04-4에서 다시 다룹니다.</p>
+<p>카디널리티는 from 쪽 하나에 to 쪽이 몇 개인지를 1..n 또는 n..1 로 적었습니다.</p>
+<table>
+<thead>
+<tr>
+<th>관계</th>
+<th>from → to</th>
+<th>카디널리티</th>
+<th>읽는 법</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>has_subscription</td>
+<td>Customer → Subscription</td>
+<td>1..n</td>
+<td>고객 하나가 구독 여럿</td>
+</tr>
+<tr>
+<td>member_of</td>
+<td>TeamMember → Customer</td>
+<td>n..1</td>
+<td>구성원 여럿이 팀 하나에</td>
+</tr>
+<tr>
+<td>subscribes_plan</td>
+<td>Subscription → Plan</td>
+<td>n..1</td>
+<td>구독 여럿이 요금제 하나를</td>
+</tr>
+<tr>
+<td>paid_by</td>
+<td>Subscription → Payment</td>
+<td>1..n</td>
+<td>구독 하나에 결제 여럿(갱신)</td>
+</tr>
+<tr>
+<td>has_usage</td>
+<td>Subscription → Usage</td>
+<td>1..n</td>
+<td>결제 주기마다 사용량 하나</td>
+</tr>
+<tr>
+<td>governed_by</td>
+<td>Payment → PolicyVersion</td>
+<td>n..1</td>
+<td>결제 여럿이 규정 판 하나에</td>
+</tr>
+<tr>
+<td>part_of</td>
+<td>Clause → PolicyVersion</td>
+<td>n..1</td>
+<td>조항 여럿이 판 하나에</td>
+</tr>
+</tbody>
+</table>
+<p>paid_by 가 1..n 인 것은 Q21 때문입니다. 첫 결제와 갱신 결제가 같은 구독에 매달려 있어야 "갱신 결제일이 기준"이라는 규칙을 적용할 수 있습니다. has_usage 도 1..n 인데, 주기마다 사용량이 하나씩이고 어떤 주기에는 기록이 없을 수 있습니다. model.yaml 의 note 에 "없으면 미확인이지 미사용이 아니다"라고 적어 둔 이유입니다. supersedes, cites 처럼 카디널리티를 안 적은 관계는 양쪽 다 여럿일 수 있는 참조 관계입니다.</p>
+<h3 id="_4">파생 관계는 저장하지 않는다</h3>
+<p>governed_by 와 affected_by 는 derived 필드를 가집니다.</p>
+<pre><code class="language-yaml">- id: governed_by
+  from: Payment
+  to: PolicyVersion
+  cardinality: n..1
+  derived: "payment.paid_at BETWEEN policy.valid_from AND policy.valid_to"
+</code></pre>
+<p>이 관계는 테이블에 외래 키로 저장하지 않고 질의할 때 날짜를 비교해 구합니다. 저장하면 규정 판이 하나 더 생겼을 때 결제 전체를 갱신해야 하고, 갱신을 빠뜨리면 "그때는 맞고 지금은 틀린" 답이 나옵니다. 파생으로 두면 Q29처럼 "새 판이 적용될 수 있는 결제"를 반대 방향으로 찾는 질의도 같은 조건식으로 됩니다. 다만 약관 9조 3항의 "유리한 규정 적용"은 조건식 하나로 표현되지 않으므로 note 에 "별도 규칙(rules.yaml)"이라고 적어 5장으로 넘겼습니다.</p>
+<p>같은 원칙이 개념에도 적용됩니다. Unused(미사용)는 Usage 의 docs_created 와 logins 로 판정되는 상태이므로 컬럼으로 저장하지 않고 derived_from: Usage 로 원천만 적습니다. 저장해 두면 사용량이 갱신될 때마다 판정을 다시 써야 하고, 무엇보다 사용량 기록이 없는 경우(Q19)를 "미사용"으로 잘못 채우기 쉽습니다.</p>
+<h3 id="_5">너무 세밀해지는 것을 막는 기준</h3>
+<div class="ad-wrapper markdown_tags">
+<script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"></script>
+<!-- markdown_tags -->
+<ins class="adsbygoogle" data-ad-client="ca-pub-9470517771012578" data-ad-format="false" data-ad-slot="4124294444" data-full-width-responsive="false" style="display:inline-block;width:300px;height:250px"></ins>
+<script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+</div>
+<p>관계와 계층을 그리다 보면 모델이 한없이 자랍니다. 이 책이 쓴 제동 장치는 한 문장입니다. 질문 30개 가운데 어느 것도 요구하지 않는 개념은 넣지 않는다.</p>
+<table>
+<thead>
+<tr>
+<th>후보</th>
+<th>규정에 있는가</th>
+<th>질문이 요구하는가</th>
+<th>판단</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결제 수단(카드·계좌)</td>
+<td>규정 9조, 1판 7조</td>
+<td>없음</td>
+<td>개념으로 두지 않음</td>
+</tr>
+<tr>
+<td>문서 종류(약관·규정·FAQ)</td>
+<td>문서마다 다름</td>
+<td>Q30 이 "문서"를 묻지만 종류 구분은 안 함</td>
+<td>PolicyVersion 의 doc_id·title 속성으로 충분</td>
+</tr>
+<tr>
+<td>프로모션 코드</td>
+<td>규정 7조</td>
+<td>Q10, Q18, Q22</td>
+<td>개념이 아니라 Payment.promo_code 속성</td>
+</tr>
+<tr>
+<td>승인자 직책(상담원·팀장·책임자)</td>
+<td>운영 매뉴얼 3절</td>
+<td>Q17</td>
+<td>ApprovalAuthority 의 approver 속성 값</td>
+</tr>
+<tr>
+<td>학생 인증</td>
+<td>요금 안내, FAQ</td>
+<td>Q20, Q21</td>
+<td>Customer.is_student 속성과 데이터의 만료일</td>
+</tr>
+<tr>
+<td>환불 처리 기간(영업일 5일)</td>
+<td>규정 9조 1항</td>
+<td>없음</td>
+<td>넣지 않음</td>
+</tr>
+</tbody>
+</table>
+<p>기준을 적용하면 "규정에 있으니까"는 근거가 되지 않습니다. 결제 수단은 규정 9조에 분명히 있지만 질문 30개 중 어느 것도 결제 수단에 따라 답이 달라지지 않습니다. 반대로 질문이 요구하면 값 하나짜리라도 속성으로 넣습니다. 프로모션 코드는 개념까지 갈 필요는 없지만 Q10·Q18·Q22의 답을 가르므로 속성으로 남깁니다.</p>
+<p>이 기준의 대가는 분명합니다. 31번째 질문이 결제 수단을 물으면 모델을 고쳐야 합니다. 이 책은 그것을 결점이 아니라 운영 방식으로 봅니다. 11장에서 새 질문과 오답이 모델 개선으로 돌아오는 순환을 다룹니다.</p>
+<h3 id="_6">정리</h3>
+<ul>
+<li>하위 개념은 규정이 다르게 적용될 때만 둡니다. Customer, Incident, CustomerRequest 세 곳에 계층이 생겼고, 정의가 상위와 같은 하위 개념은 이름만 둡니다.</li>
+<li>관계 13개는 소유·적용·참조·시점 네 유형으로 나뉩니다. 방향은 읽었을 때 자연스러운 주어에서 목적어로, 카디널리티는 1..n 또는 n..1 로 적습니다.</li>
+<li>날짜 비교로 정해지는 관계는 derived 로 표시하고 저장하지 않습니다. 저장하면 규정이 바뀔 때 갱신 누락이 생깁니다.</li>
+<li>질문 30개가 요구하지 않는 개념은 규정에 있어도 넣지 않습니다. 결제 수단, 문서 종류, 처리 기간이 그 예입니다.</li>
+</ul>
+</div></body></html>

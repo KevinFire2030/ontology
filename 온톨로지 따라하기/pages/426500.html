@@ -1,0 +1,203 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>05-2. 시점: 계약 당시 규정과 현재 규정 중 무엇을 적용하는가</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426500">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>05-2. 시점: 계약 당시 규정과 현재 규정 중 무엇을 적용하는가</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">유효기간을 가진 규정 판</a></li>
+<li><a href="#_2">세 가지 시점 구분하기</a></li>
+<li><a href="#c004">노트클라우드 사례: C004의 환불액</a></li>
+<li><a href="#_3">"그때는 맞고 지금은 틀린" 답변 막기</a></li>
+<li><a href="#_4">자동 갱신과 재점검 범위</a></li>
+<li><a href="#_5">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/rules.yaml 기준</p>
+</blockquote>
+<p>"연간 구독은 며칠 안에 요청해야 전액 환불되나요?"라는 질문에 기본 RAG는 종종 "14일"이라고 답합니다(Q02). 규정 제1판과 제2판이 모두 벡터 DB에 들어 있고, 검색은 두 문서 중 어느 쪽이 지금 유효한지 모르기 때문입니다. 이 절은 규정에 유효기간을 붙이고, 어느 시점의 규정을 어떤 시점의 사건에 적용할지 규칙으로 정하는 방법을 다룹니다.</p>
+<h3 id="_1">유효기간을 가진 규정 판</h3>
+<p>노트클라우드의 환불 규정은 2025년 7월 1일에 개정되었습니다. 문서로는 두 개의 파일이지만, 의미 모델에서는 하나의 규정이 두 개의 판(PolicyVersion)을 가진 것으로 봅니다. 4장의 model.yaml 은 PolicyVersion 개념에 valid_from·valid_to 속성을 두었고, rules.yaml 은 그 값을 다음과 같이 적었습니다.</p>
+<pre><code class="language-yaml">policy_versions:
+  - id: refund_policy_v1
+    valid_from: 2024-01-01
+    valid_to: 2025-06-30
+  - id: refund_policy_v2
+    valid_from: 2025-07-01
+    valid_to: null
+</code></pre>
+<p>valid_to 가 null 인 판이 현재 유효한 판입니다. 이 값은 각 문서 앞머리의 YAML 프런트매터(doc_id, valid_from, valid_to)와 같으며, 6장에서 PostgreSQL 테이블의 컬럼이 됩니다.</p>
+<p>두 판의 차이를 나란히 놓으면 시점 문제가 왜 생기는지 보입니다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>제1판(2024-01-01 ~ 2025-06-30)</th>
+<th>제2판(2025-07-01 ~)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>연간 전액 환불 기간</td>
+<td>14일(3조 1항)</td>
+<td>30일(4조 1항)</td>
+</tr>
+<tr>
+<td>연간 일할 환불</td>
+<td>위약금 10% 공제(3조 2항)</td>
+<td>위약금 없음, 연간 할인분 사용 비례 환수(4조 2항·3항)</td>
+</tr>
+<tr>
+<td>프로모션 결제</td>
+<td>환불 불가(5조 1항)</td>
+<td>전액 환불 기간 안에서만 환불(7조 1항)</td>
+</tr>
+<tr>
+<td>미사용 정의</td>
+<td>없음</td>
+<td>문서 0건·로그인 3회 이하(2조 1항)</td>
+</tr>
+<tr>
+<td>크레딧 현금 환불</td>
+<td>없음(6조 2항)</td>
+<td>해지 신청 상태면 현금 환불(8조 2항)</td>
+</tr>
+<tr>
+<td>학생 요금제</td>
+<td>없음</td>
+<td>6조 신설</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">세 가지 시점 구분하기</h3>
+<p>시점 문제를 풀려면 먼저 "시점"이라는 말이 세 가지로 갈린다는 것을 분명히 해야 합니다.</p>
+<table>
+<thead>
+<tr>
+<th>시점</th>
+<th>뜻</th>
+<th>노트클라우드에서 어디에 있는가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>질문 시점</td>
+<td>지금 질문이 들어온 날. 답변이 계산되는 기준일</td>
+<td>questions.yaml 의 as_of(2025-09-08), 요청의 requested_at</td>
+</tr>
+<tr>
+<td>사건 시점</td>
+<td>판단 대상이 되는 사건이 일어난 날</td>
+<td>Payment 의 paid_at(결제 완료일)</td>
+</tr>
+<tr>
+<td>규정 시점</td>
+<td>규정 판이 유효한 기간</td>
+<td>PolicyVersion 의 valid_from·valid_to</td>
+</tr>
+</tbody>
+</table>
+<p>셋 중 무엇을 기준으로 규정 판을 고르는지는 업무마다 다릅니다. 노트클라우드는 약관 2조 2항이 "계약 성립일은 결제 완료일이며 환불·규정 적용의 기준일이 된다"고 정했으므로 사건 시점, 곧 결제 완료일이 기본입니다. model.yaml 의 governed_by 관계는 이것을 파생 규칙으로 적어 두었습니다.</p>
+<pre><code class="language-yaml">- id: governed_by
+  from: Payment
+  to: PolicyVersion
+  derived: "payment.paid_at BETWEEN policy.valid_from AND policy.valid_to"
+</code></pre>
+<p>그런데 사건 시점만으로는 부족합니다. 약관 9조 3항은 "변경된 규정이 고객에게 더 유리한 경우, 변경 시행일 이후에 발생하는 요청에는 변경된 규정을 적용한다"고 합니다. 여기서 "요청"은 질문 시점입니다. 결국 규정 판을 고르는 데 사건 시점과 질문 시점이 함께 쓰입니다. 그리고 자동 갱신은 약관 3조 3항에 따라 갱신 결제일이 새 결제 완료일이 되므로, 사건 시점 자체가 주기마다 갱신됩니다.</p>
+<p>rules.yaml 은 이 세 층을 version_selection 으로 정리했습니다.</p>
+<pre><code class="language-yaml">version_selection:
+  base: "결제 완료일(paid_at)이 유효기간 안에 있는 판"
+  renewal: "자동 갱신 결제는 갱신 결제일을 결제 완료일로 본다"
+  favorable_override:
+    description: "변경된 규정이 고객에게 더 유리하면,
+                  변경 시행일 이후의 요청에는 변경된 규정을 적용한다"
+    how: "두 판으로 각각 계산해 고객에게 유리한 결과를 택하고
+          '약관 9조 3항 적용'을 기록"
+    evidence: [terms_of_service:9.3, ops_manual:2.2]
+</code></pre>
+<p>favorable_override 의 how 가 중요합니다. "유리한 규정"을 조항 단위로 미리 골라 두는 것이 아니라, 두 판으로 각각 계산한 뒤 결과를 비교합니다. 어느 조항이 유리한지는 고객의 상황(경과 일수, 결제액)에 따라 달라지기 때문에 계산 전에는 알 수 없습니다.</p>
+<h3 id="c004">노트클라우드 사례: C004의 환불액</h3>
+<p>고객 C004는 프로 연간 구독을 2025년 6월 20일에 179,000원(개정 전 가격)으로 결제했습니다. 결제 완료일이 6월 30일 이전이므로 기본 적용 판은 제1판입니다. 이 고객이 오늘(2025년 9월 8일) 환불을 요청하면 어떻게 될까요(Q14).</p>
+<p>경과 일수는 80일이므로 두 판 모두 전액 환불 기간을 지났고 일할 환불이 됩니다. 잔여 기간은 요청일 다음 날인 9월 9일부터 구독 종료일인 2026년 6월 19일까지 284일이고, 전체 기간은 365일입니다.</p>
+<table>
+<thead>
+<tr>
+<th>계산 단계</th>
+<th>제1판(3조 2항)</th>
+<th>제2판(4조 2항·4항)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>잔여 기간 일할 금액</td>
+<td>179,000 × 284 ÷ 365 = 139,277원</td>
+<td>139,277원</td>
+</tr>
+<tr>
+<td>공제</td>
+<td>위약금 10% = 13,928원</td>
+<td>연간 할인분 35,800원 × 81 ÷ 365 = 7,945원</td>
+</tr>
+<tr>
+<td>환불액</td>
+<td>약 125,349원</td>
+<td>약 131,332원</td>
+</tr>
+</tbody>
+</table>
+<p>제2판이 약 6,000원 더 유리하므로 약관 9조 3항에 따라 제2판 4조 2항을 적용하고, 처리 기록에 "약관 9조 3항 적용"을 남깁니다(운영 매뉴얼 2절 2항). 여기서 연간 할인분 35,800원은 결제 당시 월간 가격 17,900원의 12개월분에서 결제액 179,000원을 뺀 값입니다. 현재 가격 19,900원으로 계산하면 환수액이 13,271원으로 커져 126,006원이 되므로, rules.yaml 의 yearly_prorated_refund 공식에 있는 monthly_price 는 결제 당시 정가여야 합니다. 시점 문제는 규정 판뿐 아니라 가격표에도 있습니다.</p>
+<p>같은 고객이 2025년 7월 10일에 요청했다면 답이 완전히 달라집니다(Q15). 경과 일수가 20일이므로 제1판의 14일은 지났지만 제2판의 30일 안입니다. 제2판이 유리하므로 179,000원 전액을 환불했어야 합니다. 같은 결제, 같은 규정 두 판인데 질문 시점이 두 달 다르다고 환불액이 47,000원 넘게 차이 납니다.</p>
+<h3 id="_3">"그때는 맞고 지금은 틀린" 답변 막기</h3>
+<p>시점을 모델에 넣지 않으면 두 종류의 오답이 생깁니다. 하나는 옛 규정을 지금 적용하는 것이고, 다른 하나는 새 규정을 옛 사건에 무조건 적용하는 것입니다.</p>
+<p>장애 크레딧을 현금으로 받을 수 있느냐는 질문(Q06)이 좋은 예입니다. 제1판 6조 2항은 "현금으로 환불하지 않는다"고 못 박았고, 제2판 8조 2항은 "해지를 신청한 상태라면 현금으로 환불한다"고 바꿨습니다. 두 문서가 모두 검색되면 LLM은 어느 쪽이든 고를 수 있습니다. C013은 해지 신청 상태(cancel_scheduled)에서 8월 10일 장애를 겪었고 현재 주기 결제일이 8월 10일이므로 제2판 대상입니다. 따라서 829원을 현금으로 환불합니다(Q28). rules.yaml 의 credit_cash_if_cancel_scheduled 규칙은 when 에 policy_version 조건을 넣어 이 판단을 판에 묶어 두었습니다.</p>
+<pre><code class="language-yaml">- id: credit_cash_if_cancel_scheduled
+  when: [credit &gt; 0, subscription.status == cancel_scheduled,
+         policy_version == refund_policy_v2]
+  result: "크레딧 해당 금액을 현금 환불"
+  evidence: [refund_policy_v2:8.2]
+  note: "1판(6조 2항)은 현금 환불 없음 — 시점에 따라 결론이 달라지는 조항"
+</code></pre>
+<p>반대 방향의 오답도 있습니다. 프로모션 코드로 2025년 4월에 연간 결제한 C010(Q22)에게 "현재 규정에서는 프로모션도 전액 환불 기간 안에서 환불된다"고 답하면 틀립니다. 제1판 5조 1항이 기본이고, 제2판을 적용해 보아도 30일이 이미 지나 결과가 같습니다. 유리한 규정 적용은 "새 규정을 무조건 쓴다"가 아니라 "두 판을 계산해 비교한다"입니다.</p>
+<div class="ad-wrapper markdown_tags">
+<script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"></script>
+<!-- markdown_tags -->
+<ins class="adsbygoogle" data-ad-client="ca-pub-9470517771012578" data-ad-format="false" data-ad-slot="4124294444" data-full-width-responsive="false" style="display:inline-block;width:300px;height:250px"></ins>
+<script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+</div>
+<p>이런 오답을 막는 모델링 패턴은 세 가지입니다.</p>
+<table>
+<thead>
+<tr>
+<th>패턴</th>
+<th>무엇을 하는가</th>
+<th>이 책에서의 위치</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>유효기간 컬럼</td>
+<td>규정 판·조항·가격표에 valid_from·valid_to 를 붙인다</td>
+<td>model.yaml 의 PolicyVersion, 6-2의 테이블</td>
+</tr>
+<tr>
+<td>이력 유지</td>
+<td>옛 판을 지우지 않고 남긴다. 결제·사용량도 주기별로 쌓는다</td>
+<td>payments.csv 의 갱신 결제 행, 6-2의 이력 테이블</td>
+</tr>
+<tr>
+<td>판 선택 규칙</td>
+<td>사건 시점으로 기본 판을 고르고, 질문 시점과 유리 조항을 검토한다</td>
+<td>rules.yaml 의 version_selection</td>
+</tr>
+</tbody>
+</table>
+<p>세 패턴을 갖추면 "오늘 기준으로 이 결제에 적용되는 판은 무엇인가"를 SQL 한 번으로 조회할 수 있고, 규정이 다시 개정되어도 판 하나를 추가하는 것으로 끝납니다. 규정 판이 셋 이상이 되거나 조항마다 시행일이 다르면 조항 단위로 유효기간을 두어야 하는데, 이는 6-2에서 겹치는 유효기간의 함정과 함께 다룹니다.</p>
+<h3 id="_4">자동 갱신과 재점검 범위</h3>
+<p>시점 규칙이 있으면 "규정이 바뀌면 어떤 고객을 다시 봐야 하는가"(Q29)도 답할 수 있습니다. 재점검 대상은 6월 30일 이전에 결제되어 아직 유효하고, 제2판이 유리하게 적용될 수 있는 구독입니다. 월간 구독은 매달 갱신 결제가 새 결제 완료일이 되므로 자동으로 제2판 대상이 되어 재점검할 필요가 없습니다. 연간 구독 중 C010은 프로모션이라 전액 환불 기간이 지났고, C012는 계정 정지로 제외되므로, 남는 것은 C004 하나입니다. 이 질의는 11-2에서 영향 범위 조회로 구현합니다.</p>
+<h3 id="_5">정리</h3>
+<ul>
+<li>규정은 하나의 개념에 여러 판이 있고, 판마다 valid_from·valid_to 를 가집니다. 문서 프런트매터, model.yaml, rules.yaml, 6장 테이블이 같은 값을 공유합니다.</li>
+<li>질문 시점, 사건 시점, 규정 시점을 구분합니다. 노트클라우드는 결제 완료일(사건 시점)로 기본 판을 고르고, 약관 9조 3항의 유리한 규정 적용은 요청일(질문 시점) 이후에 두 판을 계산해 비교합니다. 자동 갱신은 갱신 결제일이 새 기준일입니다.</li>
+<li>C004는 오늘 요청하면 제2판 4조 2항으로 약 131,332원, 7월 10일에 요청했다면 179,000원 전액입니다. 공식의 월간 가격도 결제 당시 가격이어야 합니다.</li>
+<li>유효기간 컬럼, 이력 유지, 판 선택 규칙 세 패턴으로 "그때는 맞고 지금은 틀린" 답변과 "새 규정 무조건 적용" 답변을 함께 막습니다. 구현은 6-2에서 이어집니다.</li>
+</ul>
+</div></body></html>

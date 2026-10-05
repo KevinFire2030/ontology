@@ -1,0 +1,45 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>온톨로지 따라하기 (RAG 다음의 설계: PostgreSQL로 시작하는 실전 온톨로지)</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/book/21274">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>온톨로지 따라하기 (RAG 다음의 설계: PostgreSQL로 시작하는 실전 온톨로지)</h1><div class="page-content book-content-font-normal">
+<p>RAG를 만들어 본 개발자가 "우리 회사 AI가 업무 질문에 왜 틀리는지"를 진단하고, 익숙한 PostgreSQL로 작은 업무 온톨로지를 직접 설계·구현·검증하는 책입니다. 같은 질문 30개를 다섯 가지 구성으로 풀어 비교하면서, 온톨로지를 어디에 얼마나 도입해야 하는지 실험으로 판단하는 근거를 얻습니다.</p>
+<p>이 책에서 "RAG 다음"은 RAG를 만들어 본 독자의 다음 설계 고민을 뜻합니다. 온톨로지가 RAG를 언제나 대체할 수 있다는 뜻이 아니라, RAG만으로는 풀리지 않는 문제가 있고 그중 어떤 것은 온톨로지로 풀 수 있다는 뜻입니다. 이 책은 바로 그런 문제를 알아보는 관점을 기르는 데 목적이 있습니다.</p>
+<h3 id="ai">AI 활용 집필 안내</h3>
+<p>이 책은 Claude Code(AI)를 활용하여 작성되었습니다. 모든 실습은 PostgreSQL 16 + pgvector 환경에서 직접 실행해 검증하며, 각 페이지 상단에 검증 상태와 기준 버전을 표시합니다.</p>
+<ul>
+<li><strong>[검증]</strong> 해당 버전에서 직접 실행해 확인한 내용</li>
+<li><strong>[참고]</strong> 공식 문서·자료를 대조했으나 직접 실행하지 않은 내용</li>
+</ul>
+<p>설계안과 검증 결과를 구분해 서술하며, 정확도·비용 수치는 모델과 환경에 따라 달라질 수 있으므로 경향에 주목해 읽어 주세요.</p>
+<h3 id="_1">이 책의 특징</h3>
+<ul>
+<li><strong>실패부터 봅니다.</strong> RAG가 틀린 답변 10개를 해부하며 시작하고, 오류를 검색·데이터·의미·규칙 문제로 구분합니다. 모든 오류를 온톨로지로 설명하지 않습니다.</li>
+<li><strong>하나의 사례를 끝까지 씁니다.</strong> 가상 기업의 고객·계약·환불 업무 질문 30개가 책 전체의 실험 재료입니다. 후반부에서는 세무 상담이라는 전문 업무로 확장합니다.</li>
+<li><strong>PostgreSQL에서 출발합니다.</strong> 개념·관계·시점·근거를 테이블과 API로 옮기는 설계 선택지를 비교하고, 그래프 DB나 RDF 표준으로 옮겨야 할 시점을 판단 기준으로 제시합니다.</li>
+<li><strong>같은 저울로 비교합니다.</strong> 같은 모델·문서·질문을 두고 기본 RAG, 검색 개선 RAG, SQL·규칙 결합, 명시적 의미 모델, 일부 그래프 탐색의 다섯 구성을 비교합니다. 검색 개선의 효과를 온톨로지의 효과로 오해하지 않도록 설계했습니다.</li>
+<li><strong>경계를 나눕니다.</strong> 의미 정의, 업무 규칙 실행, 데이터 검증, 에이전트 행동 제어를 구분해 다룹니다.</li>
+<li><strong>재현 가능합니다.</strong> 모든 코드와 데이터는 공개 예제 저장소에서 실행할 수 있습니다.</li>
+</ul>
+<h3 id="_2">대상 독자</h3>
+<ul>
+<li>RAG 서비스를 만들어 봤지만 업무 질문에서 오답이 반복되어 다음 설계를 고민하는 개발자</li>
+<li>온톨로지·지식 그래프 도입을 검토하지만 새 DB와 표준까지 배워야 하는지 부담을 느끼는 백엔드 개발자</li>
+<li>세무·법무·보험처럼 규정과 예외가 많은 업무를 AI로 자동화하려는 도메인 전문가, AI 기획자</li>
+<li>"온톨로지를 쓰면 정말 좋아지는가"를 정확도·비용·관리 부담으로 검증해야 하는 기술 리더, 아키텍트</li>
+</ul>
+<p>사전 지식은 Python, SQL, LLM API 호출 경험이면 충분합니다. 온톨로지 사전 지식은 필요하지 않습니다.</p>
+<h3 id="_3">전자책 안내</h3>
+<p>이 책의 1~9장과 부록은 웹에서 무료로 읽을 수 있습니다. <strong>10장 「전문 업무로 확장: 세무 상담 사례」와 11장 「운영: 모델을 살아 있게 유지하기」는 전자책 구매자에게 제공되는 장</strong>입니다.</p>
+<ul>
+<li>10장은 앞 장의 방법을 세무 상담(간이과세 판단)에 옮겨, 세 겹의 시점·법령과 실무 용어의 층·조건 13개의 확인 순서·전문가 간 해석 차이의 기록 방식을 설계하고 세 구성으로 비교 실험합니다.</li>
+<li>11장은 LLM이 만든 모델의 검수 절차, 규정 개정 시 재점검 범위 산출, 실패 사례로 모델을 개선하는 순환, 팀의 역할과 도구, 그리고 의미 모델을 OKF(LLM 위키) 번들로 내보내는 실습을 다룹니다.</li>
+<li>두 장의 내용은 웹의 「10장 전자책 미리보기」, 「11장 전자책 미리보기」 페이지에서 절별로 소개합니다.</li>
+<li>예제 코드와 데이터는 전자책 구매와 관계없이 전부 공개 저장소에 있습니다. 전자책은 그 코드를 만들게 된 설계 과정과 실측 해설을 담습니다.</li>
+<li>구매는 이 페이지의 전자책 구매 버튼에서 할 수 있으며, 구매는 이 책을 계속 갱신하고 관리하는 데 응원이 됩니다.</li>
+</ul>
+<h3 id="_4">참고 자료</h3>
+<ul>
+<li>예제 코드 저장소: <a href="https://github.com/ady95/ontology-tutorial">https://github.com/ady95/ontology-tutorial</a></li>
+<li>PostgreSQL 공식 문서: <a href="https://www.postgresql.org/docs/16/">https://www.postgresql.org/docs/16/</a></li>
+<li>pgvector: <a href="https://github.com/pgvector/pgvector">https://github.com/pgvector/pgvector</a></li>
+<li>Apache AGE: <a href="https://age.apache.org/">https://age.apache.org/</a></li>
+<li>Palantir Ontology 소개: <a href="https://www.palantir.com/docs/foundry/ontology/why-ontology">https://www.palantir.com/docs/foundry/ontology/why-ontology</a></li>
+</ul>
+</div></body></html>

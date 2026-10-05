@@ -1,0 +1,2207 @@
+
+
+
+<!DOCTYPE HTML>
+<html lang="ko">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="google-site-verification"
+              content="mzkAy71X1qQFWihQN535LoiToXg34MUg9nuor7Og9E8" />
+        <meta name="naver-site-verification"
+              content="a7b53e9ea172d3cefcc05eaba6ebf7180eca08fa" />
+        
+    <meta name="description"
+          content="[TOC]  &gt; **[참고]** 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/rules.yaml 기준  5장을 여기까지 따라오면 …">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="위키독스">
+    <meta property="og:title" content="05-5. 경계 나누기: 의미 정의·업무 규칙·데이터 검증·에이전트 제어">
+    <meta property="og:description"
+          content="[TOC]  &gt; **[참고]** 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/rules.yaml 기준  5장을 여기까지 따라오면 …">
+    <meta property="og:image"
+          content="https://static.wikidocs.net/images/book/book-cover-v3-900x1170.png">
+    <meta property="og:url"
+          content="https://wikidocs.net/426503">
+
+        <link rel="apple-touch-icon"
+              sizes="180x180"
+              href="https://static.wikidocs.net/static/img/LaunchImage.png?v=1088">
+        <link rel="manifest"
+              href="https://static.wikidocs.net/static/site.webmanifest?v=1098">
+        <link rel="icon"
+              type="image/x-icon"
+              sizes="16x16 32x32 48x48 64x64 128x128 256x256"
+              href="https://static.wikidocs.net/static/img/favicon.ico?v=1088">
+        
+    <link rel="canonical" href="https://wikidocs.net/426503">
+
+        <link rel="stylesheet"
+      href="https://static.wikidocs.net/fonts/pretendard/v1.3.9/pretendardvariable-dynamic-subset.min.css?v=2" />
+<link rel="stylesheet"
+      href="https://static.wikidocs.net/fonts/nanum-barun-gothic-yet-hangul/v1/nanum-barun-gothic-yet-hangul.css" />
+
+        <title>
+            
+    05-5. 경계 나누기: 의미 정의·업무 규칙·데이터 검증·에이전트 제어 - 온톨로지 따라하기 (RAG 다음의 설계: PostgreSQL로 시작하는 실전 온톨로지)
+
+        </title>
+        <link rel="stylesheet"
+              href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+              integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+              crossorigin="anonymous">
+        <link type="text/css"
+              href="https://static.wikidocs.net/static/book/css/common.min.css?v=1098"
+              rel="stylesheet"
+              media="screen" />
+        
+            <link type="text/css"
+                  id="main-stylesheet"
+                  href="https://static.wikidocs.net/static/book/css/style_stack.min.css?v=1098"
+                  rel="stylesheet"
+                  media="screen" />
+        
+        
+    
+<link type="text/css"
+      href="https://static.wikidocs.net/static/apprise/apprise.min.css?v=1098"
+      rel="stylesheet" />
+<link type="text/css"
+      href="https://static.wikidocs.net/static/treeview/bootstrap-treeview.min.css?v=1098"
+      rel="stylesheet" />
+
+    <link type="text/css"
+          id="markdown-stylesheet"
+          href="https://static.wikidocs.net/static/book/css/markdown_stack.min.css?v=1098"
+          rel="stylesheet" />
+    <link rel="stylesheet"
+          id="highlight-stylesheet"
+          href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/default.min.css">
+
+<link type="text/css"
+      href="https://static.wikidocs.net/static/book/css/copycode.min.css?v=1098"
+      rel="stylesheet" />
+
+    
+    
+    
+    <style>
+        ins.adsbygoogle[data-ad-status="unfilled"] {
+            display: none !important;
+        }
+
+        .ad-wrapper:has(> ins.adsbygoogle[data-ad-status="unfilled"]),
+        .dynamic-ad:has(> ins.adsbygoogle[data-ad-status="unfilled"]) {
+            display: none !important;
+        }
+
+        .wikidocs-ad-top-block .first-ad,
+        .wikidocs-ad-top-block .second-ad,
+        .wikidocs-ad-top-block .ad-wrapper {
+            height: 280px;
+            min-height: 280px;
+            overflow: hidden;
+        }
+
+        .wikidocs-ad-top-block .first-ad:has(ins.adsbygoogle[data-ad-status="unfilled"]),
+        .wikidocs-ad-top-block .second-ad:has(ins.adsbygoogle[data-ad-status="unfilled"]),
+        .wikidocs-ad-top-block .ad-wrapper:has(ins.adsbygoogle[data-ad-status="unfilled"]) {
+            height: 0;
+            min-height: 0;
+        }
+    </style>
+    
+
+        
+    
+
+
+        
+            <!-- Global site tag (gtag.js) - Google Analytics -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id=G-6N5MJRGLWG"></script>
+            <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-6N5MJRGLWG');
+        /* Google Ads 전환 측정을 다시 사용할 경우 아래 주석을 해제합니다.
+        gtag('config', 'AW-1044074083');
+        gtag('event', 'conversion', {
+            'send_to': 'AW-1044074083/jW6kCMei2KYaEOOc7fED',
+            'value': 1.0,
+            'currency': 'KRW'
+        });
+        */
+            </script>
+        
+    </head>
+    <body data-is-mobile="false"
+          data-async-page-navigation="true"
+          data-is-authenticated="false"
+          data-is-debug="false"
+           data-is-darkmode='false' >
+        
+    <div id="wikidocs-reader-side-ad">
+        
+            <!-- PC -->
+
+    
+        <aside id="asideRight" class="asideRight">
+    <div id="chaseRight" style="margin-top: 40px;">
+        
+            <script async
+                    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"
+                    crossorigin="anonymous"></script>
+            <!-- 위키독스_데스크탑_본문_300x250 -->
+            <ins class="adsbygoogle"
+                 style="display:inline-block;
+                        width:300px;
+                        height:250px"
+                 data-ad-client="ca-pub-9470517771012578"
+                 data-ad-slot="1227190832"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        
+    </div>
+</aside>
+
+    
+
+
+        
+    </div>
+
+        
+        
+        <div class="container" style="padding-bottom:50px">
+            
+    <div class="content row tex2jax_ignore wikidocs-reader-layout"
+         style="margin-top:0px">
+        <div class="col-sm-3 wikidocs-reader-toc-column">
+
+<div class="row"
+     id="toc-data"
+     data-book-id="21274"
+     data-toc-folding="N"
+     data-responsive-drawer="true">
+    
+        <button type="button"
+                class="mobile-toc-btn wikidocs-reader-toc-trigger"
+                aria-label="책 목차 열기"
+                aria-controls="wikidocs-reader-book-toc"
+                aria-expanded="false"
+                data-wikidocs-mobile-toc-trigger>
+            <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+        </button>
+        <div class="wikidocs-reader-toc-backdrop"
+             data-wikidocs-mobile-toc-backdrop></div>
+    
+    <div class="col-sm-3 sidebar"
+         id="wikidocs-reader-book-toc" data-wikidocs-mobile-toc-panel
+         style="padding:0;
+                margin:0;
+                overflow-x: hidden">
+        
+        <div class="toc toc-checker">
+            <div class="row">
+                <div class="col-xs-12" style="padding:0;">
+                    <div class="row clearfix toc-toolbar wikidocs-reader-toc-toolbar"
+                         style="margin:0;
+                                padding:0;
+                                border-bottom:solid 1px #ccc">
+                        <div class="toc-search">
+                            <input type="text"
+                                   id="kw"
+                                   name="kw"
+                                   class="input-search"
+                                   placeholder="검색어를 입력하세요."
+                                   autocomplete="off">
+                            <ul id="search-results" class="dropdown-menu" aria-labelledby="kw">
+                            </ul>
+                        </div>
+                        <div class="toc-actions wikidocs-reader-toc-actions">
+                            
+                                <button class="btn btn-xs btn-default find-btn" style="margin-top:12px;">
+                                    <i class="glyphicon glyphicon-search" title="찾기"></i>
+                                </button>
+                                <button class="btn btn-xs btn-default menu_link menu-toggle"
+                                        style="margin-top:12px">
+                                    <i class="glyphicon glyphicon-menu-hamburger" title="사이드바 토글"></i>
+                                </button>
+                                <a href="/"
+                                   class="btn btn-xs btn-default home-btn"
+                                   style="margin-right:20px;
+                                          margin-top:12px">
+                                    <i class="glyphicon glyphicon-home" title="위키독스"></i>
+                                </a>
+                            
+                            
+                                <button type="button"
+                                        class="btn btn-xs btn-default wikidocs-reader-toc-close"
+                                        aria-label="책 목차 닫기"
+                                        data-wikidocs-mobile-toc-close>
+                                    <i class="glyphicon glyphicon-remove" aria-hidden="true"></i>
+                                </button>
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="list-group list-group-toc" style="margin:0;">
+                <a class="list-group-item book-title "
+                   href="/book/21274"
+                   style="margin:0">
+                    <span style="white-space:nowrap;
+                                 overflow:hidden;
+                                 display:block"
+                          title="온톨로지 따라하기 (RAG 다음의 설계: PostgreSQL로 시작하는 실전 온톨로지)">
+                        
+                            <i class="glyphicon glyphicon-book"></i>
+                        
+                        <strong>온톨로지 따라하기 (RAG 다음의 설계: PostgreSQL로 시작하는 실전 온톨로지)</strong>
+                    </span>
+                    
+                </a>
+                <div class="scrollable-content">
+                    
+                        <a href="/426475"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426475"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="00. 들어가며">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    00. 들어가며
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426476"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426476"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="01. 문서를 다 넣었는데 AI는 왜 틀릴까?">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    01. 문서를 다 넣었는데 AI는 왜 틀릴까?
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426477"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426477"
+                           data-parent-id="426476"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="01-1. RAG가 틀린 답변 10개 해부하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    01-1. RAG가 틀린 답변 10개 해부하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426478"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426478"
+                           data-parent-id="426476"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="01-2. 오류를 네 가지로 구분하기: 검색·데이터·의미·규칙">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    01-2. 오류를 네 가지로 구분하기: 검색·데이터·의미·규칙
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426479"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426479"
+                           data-parent-id="426476"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="01-3. 이 책의 가상 기업과 업무 질문 30개">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    01-3. 이 책의 가상 기업과 업무 질문 30개
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426480"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426480"
+                           data-parent-id="426476"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="01-4. 실습: 기본 RAG로 업무 질문 30개 채점하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    01-4. 실습: 기본 RAG로 업무 질문 30개 채점하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426481"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426481"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="02. 이 오류에 온톨로지가 필요한가?">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    02. 이 오류에 온톨로지가 필요한가?
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426482"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426482"
+                           data-parent-id="426481"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="02-1. 온톨로지란 무엇인가: 개념·관계·제약·공유된 정의">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    02-1. 온톨로지란 무엇인가: 개념·관계·제약·공유된 정의
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426483"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426483"
+                           data-parent-id="426481"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="02-2. DB 스키마와 온톨로지는 무엇이 다른가?">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    02-2. DB 스키마와 온톨로지는 무엇이 다른가?
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426484"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426484"
+                           data-parent-id="426481"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="02-3. DB를 잘 설계하면 온톨로지는 필요 없을까?">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    02-3. DB를 잘 설계하면 온톨로지는 필요 없을까?
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426485"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426485"
+                           data-parent-id="426481"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="02-4. RAG·GraphRAG·지식 그래프·온톨로지는 어디에서 만나는가?">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    02-4. RAG·GraphRAG·지식 그래프·온톨로지는 어디에서 만나는가?
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426486"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426486"
+                           data-parent-id="426481"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="02-5. 팔란티어 Ontology에서 배울 점과 가져오지 않을 점">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    02-5. 팔란티어 Ontology에서 배울 점과 가져오지 않을 점
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426487"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426487"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="03. 실습 환경 준비">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    03. 실습 환경 준비
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426488"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426488"
+                           data-parent-id="426487"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="03-1. PostgreSQL + pgvector 설치 (Docker Compose)">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    03-1. PostgreSQL + pgvector 설치 (Docker Compose)
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426489"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426489"
+                           data-parent-id="426487"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="03-2. Python 환경과 LLM API 설정">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    03-2. Python 환경과 LLM API 설정
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426490"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426490"
+                           data-parent-id="426487"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="03-3. 예제 코드 저장소 구조와 실행 방법">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    03-3. 예제 코드 저장소 구조와 실행 방법
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426491"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426491"
+                           data-parent-id="426487"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="03-4. 평가 도구: 같은 질문 세트로 여러 구성을 채점하는 방법">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    03-4. 평가 도구: 같은 질문 세트로 여러 구성을 채점하는 방법
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426492"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426492"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="04. 업무 질문에서 개념 뽑아내기">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    04. 업무 질문에서 개념 뽑아내기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426493"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426493"
+                           data-parent-id="426492"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="04-1. 업무 질문 30개에서 개념·관계 후보 추출하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    04-1. 업무 질문 30개에서 개념·관계 후보 추출하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426494"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426494"
+                           data-parent-id="426492"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="04-2. 용어 사전 만들기: 같은 말, 다른 뜻 구분하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    04-2. 용어 사전 만들기: 같은 말, 다른 뜻 구분하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426495"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426495"
+                           data-parent-id="426492"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="04-3. 개념 계층과 관계 정의하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    04-3. 개념 계층과 관계 정의하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426496"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426496"
+                           data-parent-id="426492"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="04-4. LLM으로 초안을 만들고 사람이 다듬기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    04-4. LLM으로 초안을 만들고 사람이 다듬기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426497"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426497"
+                           data-parent-id="426492"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="04-5. 실습: 고객·계약·환불 도메인의 최소 의미 모델">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    04-5. 실습: 고객·계약·환불 도메인의 최소 의미 모델
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426498"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426498"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="05. 조건·예외·시점·근거 설계하기">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    05. 조건·예외·시점·근거 설계하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426499"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426499"
+                           data-parent-id="426498"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="05-1. 원칙과 예외를 함께 표현하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    05-1. 원칙과 예외를 함께 표현하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426500"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426500"
+                           data-parent-id="426498"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="05-2. 시점: 계약 당시 규정과 현재 규정 중 무엇을 적용하는가">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    05-2. 시점: 계약 당시 규정과 현재 규정 중 무엇을 적용하는가
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426501"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426501"
+                           data-parent-id="426498"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="05-3. 근거 연결: 어떤 문서의 어느 조항이 답을 뒷받침하는가">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    05-3. 근거 연결: 어떤 문서의 어느 조항이 답을 뒷받침하는가
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426502"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426502"
+                           data-parent-id="426498"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="05-4. 정보가 부족할 때: 판단 보류와 추가 질문">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    05-4. 정보가 부족할 때: 판단 보류와 추가 질문
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426503"
+                           class="list-group-item toc-item active"
+                           data-wikidocs-reader-link
+                           data-id="426503"
+                           data-parent-id="426498"
+                           data-depth="1"
+                           aria-current="page">
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="05-5. 경계 나누기: 의미 정의·업무 규칙·데이터 검증·에이전트 제어">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    05-5. 경계 나누기: 의미 정의·업무 규칙·데이터 검증·에이전트 제어
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426504"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426504"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="06. PostgreSQL로 의미 모델 구현하기">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    06. PostgreSQL로 의미 모델 구현하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426505"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426505"
+                           data-parent-id="426504"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="06-1. 개념·관계를 테이블로: 설계 선택지 비교">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    06-1. 개념·관계를 테이블로: 설계 선택지 비교
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426506"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426506"
+                           data-parent-id="426504"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="06-2. 시점(유효기간) 모델링과 이력 테이블">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    06-2. 시점(유효기간) 모델링과 이력 테이블
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426507"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426507"
+                           data-parent-id="426504"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="06-3. 근거 문서·조항과 의미 모델 연결하기 (pgvector 결합)">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    06-3. 근거 문서·조항과 의미 모델 연결하기 (pgvector 결합)
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426508"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426508"
+                           data-parent-id="426504"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="06-4. 의미 모델을 API로 노출하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    06-4. 의미 모델을 API로 노출하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426509"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426509"
+                           data-parent-id="426504"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="06-5. 실습: 스키마 구축과 데이터 적재">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    06-5. 실습: 스키마 구축과 데이터 적재
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426510"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426510"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="07. 검색·SQL·규칙을 연결해 답변 만들기">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    07. 검색·SQL·규칙을 연결해 답변 만들기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426511"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426511"
+                           data-parent-id="426510"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="07-1. 질문 분석: 어떤 개념과 조건이 필요한가">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    07-1. 질문 분석: 어떤 개념과 조건이 필요한가
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426512"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426512"
+                           data-parent-id="426510"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="07-2. 검색 + SQL 조회 + 규칙 평가 파이프라인">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    07-2. 검색 + SQL 조회 + 규칙 평가 파이프라인
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426513"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426513"
+                           data-parent-id="426510"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="07-3. LLM에 의미 모델을 전달하는 방법: 컨텍스트 설계">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    07-3. LLM에 의미 모델을 전달하는 방법: 컨텍스트 설계
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426514"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426514"
+                           data-parent-id="426510"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="07-4. 답변에 근거와 적용 조건 붙이기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    07-4. 답변에 근거와 적용 조건 붙이기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426515"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426515"
+                           data-parent-id="426510"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="07-5. 실습: 작은 업무 답변 서비스 완성">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    07-5. 실습: 작은 업무 답변 서비스 완성
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426516"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426516"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08. 온톨로지 도입 실험실: 추가 전후 비교하기">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08. 온톨로지 도입 실험실: 추가 전후 비교하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426517"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426517"
+                           data-parent-id="426516"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08-1. 실험 설계: 같은 모델·문서·질문, 구성 요소만 바꾼다">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08-1. 실험 설계: 같은 모델·문서·질문, 구성 요소만 바꾼다
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426518"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426518"
+                           data-parent-id="426516"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08-2. 구성 1·2: 기본 RAG vs 검색·메타데이터 개선 RAG">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08-2. 구성 1·2: 기본 RAG vs 검색·메타데이터 개선 RAG
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426519"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426519"
+                           data-parent-id="426516"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08-3. 구성 3: SQL 조회·규칙 처리를 결합한 RAG">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08-3. 구성 3: SQL 조회·규칙 처리를 결합한 RAG
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426520"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426520"
+                           data-parent-id="426516"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08-4. 구성 4: 명시적 의미 모델을 추가한 구성">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08-4. 구성 4: 명시적 의미 모델을 추가한 구성
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426521"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426521"
+                           data-parent-id="426516"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08-5. 결과 해석: 무엇이 온톨로지의 효과이고 무엇이 아닌가">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08-5. 결과 해석: 무엇이 온톨로지의 효과이고 무엇이 아닌가
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426522"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426522"
+                           data-parent-id="426516"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="08-6. 정확도 외의 비교: 비용·응답 시간·관리 부담">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    08-6. 정확도 외의 비교: 비용·응답 시간·관리 부담
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426523"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426523"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="09. 그래프 DB로 옮길 때와 PostgreSQL에 남을 때">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    09. 그래프 DB로 옮길 때와 PostgreSQL에 남을 때
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426524"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426524"
+                           data-parent-id="426523"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="09-1. 그래프 탐색이 유리한 질문 유형">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    09-1. 그래프 탐색이 유리한 질문 유형
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426525"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426525"
+                           data-parent-id="426523"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="09-2. PostgreSQL 안에서 그래프 다루기: 재귀 CTE와 Apache AGE">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    09-2. PostgreSQL 안에서 그래프 다루기: 재귀 CTE와 Apache AGE
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426526"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426526"
+                           data-parent-id="426523"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="09-3. 구성 5: 필요한 일부를 그래프 탐색으로 구현하기">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    09-3. 구성 5: 필요한 일부를 그래프 탐색으로 구현하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426527"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426527"
+                           data-parent-id="426523"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="09-4. RDF·OWL·SPARQL 표준은 언제 필요한가">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    09-4. RDF·OWL·SPARQL 표준은 언제 필요한가
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426528"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426528"
+                           data-parent-id="426523"
+                           data-depth="1"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="09-5. 판단 체크리스트: 유지·이전·혼합">
+                                <span style="padding-left:20px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    09-5. 판단 체크리스트: 유지·이전·혼합
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/427390"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="427390"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="10장 전자책 미리보기: 전문 업무로 확장 — 세무 상담 사례">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    10장 전자책 미리보기: 전문 업무로 확장 — 세무 상담 사례
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/427391"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="427391"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="11장 전자책 미리보기: 운영 — 모델을 살아 있게 유지하기">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    11장 전자책 미리보기: 운영 — 모델을 살아 있게 유지하기
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426540"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426540"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="부록A. 실습 질문 세트 30개 전체와 정답·근거">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    부록A. 실습 질문 세트 30개 전체와 정답·근거
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426541"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426541"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="부록B. 다섯 가지 구성 비교 결과표">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    부록B. 다섯 가지 구성 비교 결과표
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426542"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426542"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="부록C. 용어 정리">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    부록C. 용어 정리
+                                </span>
+                            </span>
+                        </a>
+                    
+                        <a href="/426543"
+                           class="list-group-item toc-item "
+                           data-wikidocs-reader-link
+                           data-id="426543"
+                           data-parent-id=""
+                           data-depth="0"
+                           >
+                            <span style="white-space:nowrap;
+                                         overflow:hidden;
+                                         display:block"
+                                  title="부록D. 참고 자료와 심화 학습 경로">
+                                <span style="padding-left:0px">
+                                    <span class="toc-toggle"></span>
+                                    
+                                    
+                                    부록D. 참고 자료와 심화 학습 경로
+                                </span>
+                            </span>
+                        </a>
+                    
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="request_mobile" id="request_mobile" value="0" />
+    </div>
+</div>
+</div>
+        <div class="page col-sm-offset-3 col-sm-9 wikidocs-reader-main"
+             id="load_content"
+             style="margin-top:10px"><div data-wikidocs-reader-content
+     data-page-id="426503"
+     data-is-author="false">
+    
+    
+
+
+
+
+
+
+
+
+
+
+<div class="clearfix page-depth">
+    <ol class="breadcrumb pull-left">
+        <li>
+            <small><a href="/book/21274"><i class="glyphicon glyphicon-book"></i> <strong>온톨로지 따라하기 (RAG 다음의 설계: P…</strong></a></small>
+        </li>
+        
+            <li>
+                <small><a href="/426498" data-wikidocs-reader-link>05. 조건·예외·시점·근거 설계하기</a></small>
+            </li>
+        
+            <li>
+                <small><a href="/426503" data-wikidocs-reader-link>05-5. 경계 나누기: 의미 정의·업무 규…</a></small>
+            </li>
+        
+    </ol>
+    
+        <ol class="breadcrumb pull-right">
+            
+
+            
+
+            <li>
+                <a href="/"><small class="logo"><i class="glyphicon glyphicon-home"></i> 위키독스</small></a>
+            </li>
+        </ol>
+    
+</div>
+
+<div class="page-header-wrapper">
+    <h1 class="page-subject">
+        <span class="page-subject-text">05-5. 경계 나누기: 의미 정의·업무 규칙·데이터 검증·에이전트 제어</span>
+        <span class="page-subject-actions">
+            
+                <a href="#top"
+                   class="btn btn-default btn-sm page-back-to-top"
+                   style="display: none"
+                   title="맨위로"><i class="glyphicon glyphicon-arrow-up"></i></a>
+            
+            <a href="javascript:togglePageToc();"
+               class="btn btn-default btn-sm"
+               title="목차 보기"><i class="glyphicon glyphicon-list"></i></a>
+            
+                
+            
+        </span>
+    </h1>
+    <!-- 스크롤 진행 표시기 -->
+    <div class="scroll-progress-container" id="scrollProgressContainer">
+        <div class="scroll-progress-bar" id="scrollProgressBar"></div>
+    </div>
+    <div id="page-toc-container"
+         class="page-toc-container"
+         style="display: none">
+        <div class="page-toc-content"></div>
+    </div>
+</div>
+<!-- google adsense -->
+
+    <!-- PC -->
+
+    
+        
+            <div class="wikidocs-ad-block wikidocs-ad-top-block" style="margin:30px 0">
+                <div class="clearfix ad-container"
+     style="display: flex;
+            justify-content: flex-start">
+    <div class="first-ad ad-container" style="margin-right: 30px;">
+        
+            <div class="ad-wrapper adv_wikidocs_top">
+                <div class="ad-placeholder">
+                    광고가 출력될 위치입니다.
+                </div>
+                <script async
+                        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"
+                        crossorigin="anonymous"></script>
+                <!-- 페이지상단임시 -->
+                <ins class="adsbygoogle wikidocs-ad"
+                     style="display:inline-block;
+                            width:336px;
+                            height:280px"
+                     data-ad-client="ca-pub-9470517771012578"
+                     data-ad-slot="7169354980"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        
+    </div>
+    <div class="second-ad ad-container">
+        
+            <div class="ad-wrapper adv_wikidocs_top">
+                <div class="ad-placeholder">
+                    광고가 출력될 위치입니다.
+                </div>
+                <script async
+                        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"
+                        crossorigin="anonymous"></script>
+                <!-- 페이지상단임시 -->
+                <ins class="adsbygoogle wikidocs-ad"
+                     style="display:inline-block;
+                            width:336px;
+                            height:280px"
+                     data-ad-client="ca-pub-9470517771012578"
+                     data-ad-slot="7169354980"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        
+    </div>
+</div>
+
+            </div>
+        
+    
+
+<!-- Mobile -->
+
+
+
+<!-- google adsense -->
+<div class="page-content tex2jax_process book-content-font-normal">
+    
+        
+        
+            
+            <div class="toc">
+<ul>
+<li><a href="#_1">네 층이 각각 답하는 질문</a></li>
+<li><a href="#_2">한 층에 몰아넣었을 때 생기는 문제</a><ul>
+<li><a href="#_3">온톨로지에 규칙을 넣으면</a></li>
+<li><a href="#_4">규칙에 정의를 넣으면</a></li>
+<li><a href="#_5">데이터 검증에 규칙을 넣으면</a></li>
+<li><a href="#_6">프롬프트에 전부 넣으면</a></li>
+<li><a href="#_7">에이전트 제어를 빠뜨리면</a></li>
+</ul>
+</li>
+<li><a href="#_8">이 책의 구현에서 각 층이 놓이는 위치</a></li>
+<li><a href="#_9">체크리스트</a></li>
+<li><a href="#_10">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/rules.yaml 기준</p>
+</blockquote>
+<p>5장을 여기까지 따라오면 파일이 세 개 생겼습니다. 개념과 관계를 적은 model.yaml, 용어를 정리한 glossary.yaml, 판단 규칙을 적은 rules.yaml 입니다. 6장부터는 여기에 PostgreSQL 스키마와 LLM 프롬프트가 더해집니다. 이쯤에서 반드시 짚어야 할 질문이 있습니다. "미사용은 문서 0건·로그인 3회 이하"라는 정의는 어디에 두어야 하는가. 온톨로지인가, 규칙인가, DB 제약인가, 프롬프트인가. 이 절은 네 층의 경계를 긋고, 경계가 무너졌을 때 무엇이 잘못되는지, 이 책의 구현에서 각 층이 어디에 놓이는지 정리합니다.</p>
+<h3 id="_1">네 층이 각각 답하는 질문</h3>
+<table>
+<thead>
+<tr>
+<th>층</th>
+<th>답하는 질문</th>
+<th>노트클라우드에서의 예</th>
+<th>이 책의 산출물</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>의미 정의(온톨로지)</td>
+<td>이것은 무엇이고 저것과 어떤 관계인가</td>
+<td>환불과 해지는 다른 요청이다. 결제는 규정 판의 적용을 받는다. 학생 조항은 베이직 조항을 준용한다</td>
+<td>model.yaml, glossary.yaml</td>
+</tr>
+<tr>
+<td>업무 규칙 실행</td>
+<td>이 상황에서 어떤 결론이 나는가</td>
+<td>월간 7일 이내·미사용이면 전액 환불. 계정 정지면 환불 불가가 먼저</td>
+<td>rules.yaml, 7장의 규칙 평가 코드</td>
+</tr>
+<tr>
+<td>데이터 검증</td>
+<td>저장된 값이 형식과 제약에 맞는가</td>
+<td>결제 완료일은 비어 있으면 안 된다. 좌석 수는 1 이상이다. 규정 판의 유효기간은 겹치지 않는다</td>
+<td>6장의 스키마 제약(NOT NULL, CHECK, 배타 제약)</td>
+</tr>
+<tr>
+<td>에이전트 행동 제어</td>
+<td>AI가 무엇을 해도 되고 무엇을 하면 안 되는가</td>
+<td>근거 없는 결론을 내지 않는다. 보류 상태를 결론으로 바꾸지 않는다. 50만원 초과 환불은 운영 책임자 승인을 받는다</td>
+<td>7장의 프롬프트, 도구 정의, 출력 검증</td>
+</tr>
+</tbody>
+</table>
+<p>네 층은 서로 참조합니다. 규칙은 온톨로지의 개념 이름(RefundRequest, billing_cycle)을 조건에 씁니다. 데이터 검증은 온톨로지의 카디널리티(구독 하나에 결제 여럿)를 제약으로 옮깁니다. 에이전트 제어는 규칙의 결과(hold, 승인자)를 받아 행동을 정합니다. 참조는 있지만 방향이 있습니다. 온톨로지가 규칙을 참조하지는 않고, 규칙이 프롬프트를 참조하지는 않습니다.</p>
+<pre><code>의미 정의  ──개념 이름·관계──→  업무 규칙  ──결론·근거·보류──→  에이전트 제어
+    │                                                          ↑
+    └──────카디널리티·속성 타입──→  데이터 검증  ──정합한 값──────┘
+</code></pre>
+<h3 id="_2">한 층에 몰아넣었을 때 생기는 문제</h3>
+<p>경계를 나누는 이유는 이론적 결벽 때문이 아닙니다. 한 층에 다른 층의 일을 밀어 넣으면 구체적인 문제가 생깁니다. 5장 도입에서 "온톨로지가 규칙 엔진도 되고 검증기도 되는 괴물"이라고 표현한 것이 바로 이것입니다.</p>
+<h4 id="_3">온톨로지에 규칙을 넣으면</h4>
+<p>"7일 이내 미사용 월간 환불 요청"을 RefundRequest 의 하위 개념 FullRefundableMonthlyRequest 로 만들고, 그 정의에 조건을 적는 방식입니다. 처음에는 깔끔해 보입니다. 그러나 05-1에서 본 것처럼 조건 조합마다 개념이 늘어납니다. 프로모션 여부, 계정 정지 여부, 학생 인증 만료 여부가 곱해지면 개념이 수십 개가 되고, 규정이 개정될 때 개념 정의를 고쳐야 합니다. 더 큰 문제는 시점입니다. "전액 환불 기간"이 1판에서 14일, 2판에서 30일인데 개념 정의에 숫자를 넣으면 판마다 개념을 따로 만들어야 합니다. 온톨로지는 "전액 환불 기간이라는 것이 있고 판마다 값이 다르다"까지만 말하고, 값과 조건은 규칙에 넘깁니다.</p>
+<h4 id="_4">규칙에 정의를 넣으면</h4>
+<p>반대로 rules.yaml 에 "해지란 다음 주기부터 갱신하지 않는 것이다" 같은 정의를 적는 방식입니다. 이러면 같은 정의가 규칙마다 반복되고, 한 규칙에서 해지를 다르게 해석해도 알아챌 수 없습니다. 4-2에서 "취소"가 해지·환불·결제 취소 세 뜻으로 쓰인다는 것을 용어 사전에 정리했기 때문에, 규칙은 request_type 이라는 정규화된 값 하나만 보면 됩니다. 정의가 한 곳(glossary.yaml, model.yaml)에 있어야 규칙·검색·프롬프트가 같은 뜻을 공유합니다. 온톨로지의 핵심이 "공유된 정의"라는 2-1의 설명이 여기서 실무적 의미를 갖습니다.</p>
+<h4 id="_5">데이터 검증에 규칙을 넣으면</h4>
+<p>"계정 정지 고객의 환불 요청은 저장할 수 없다"는 CHECK 제약을 걸면 어떻게 될까요. 요청 자체는 들어왔는데 기록이 안 됩니다. 상담 이력이 남지 않고, 고객에게 왜 안 되는지 설명할 근거도 저장되지 않습니다. 데이터 검증은 "값이 말이 되는가"(좌석 수가 음수인가, 유효기간이 뒤집혔는가)를 맡고, "이 요청을 받아들일 것인가"는 규칙이 맡습니다. 6-2에서 규정 판의 유효기간이 겹치지 않도록 제약을 거는 것은 데이터 검증이 맞습니다. 그러나 "1판 대상에 2판을 적용해도 되는가"는 규칙(favorable_override)입니다.</p>
+<h4 id="_6">프롬프트에 전부 넣으면</h4>
+<p>규정 원문, 용어 정의, 판단 조건, 승인 권한을 모두 시스템 프롬프트에 넣고 LLM에게 판단을 맡기는 방식입니다. 1장의 기본 RAG가 이 방식이었고, 그 결과가 1장의 오답 10개였습니다. 문제는 세 가지입니다. 같은 입력에 다른 결론이 나오고(재현 불가), 6조 2항 같은 구제 조항을 놓치며(예외 누락), 근거 조항을 지어냅니다(근거 오인용). 규칙이 코드로 평가되면 결론은 결정적이고, 근거는 evidence 에서 오며, 보류는 requires 에서 나옵니다. 프롬프트는 그 결과를 고객에게 설명하는 일과, 규칙이 다루지 않는 자유 질문을 처리하는 일에 집중합니다. 7-3에서 컨텍스트에 무엇을 넣고 무엇을 뺄지 이 기준으로 정합니다.</p>
+<h4 id="_7">에이전트 제어를 빠뜨리면</h4>
+<p>규칙이 "50만원 초과, 운영 책임자 승인"이라는 결과를 냈는데, 에이전트가 그것을 고객에게 "환불이 승인되었습니다"로 말하면 규칙이 맞아도 서비스는 틀립니다. C005의 연간 환불(Q17)은 약 607,839원으로 계산되지만, 답변에는 "운영 책임자 승인이 필요하다"와 "요청자가 팀 관리자인지 확인해야 한다"가 함께 들어가야 정답입니다. 규칙 결과를 행동으로 옮기는 층이 따로 있어야 하고, 그 층은 프롬프트만이 아니라 출력 검증 코드까지 포함합니다.</p>
+<h3 id="_8">이 책의 구현에서 각 층이 놓이는 위치</h3>
+<table>
+<thead>
+<tr>
+<th>층</th>
+<th>설계 산출물(4·5장)</th>
+<th>저장·실행 위치(6·7장)</th>
+<th>검토 주체(11장)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>의미 정의</td>
+<td>model.yaml, glossary.yaml</td>
+<td>6-1의 개념·관계 테이블, 6-3의 조항 연결 테이블, 7-3의 컨텍스트</td>
+<td>도메인 전문가가 정의 검수</td>
+</tr>
+<tr>
+<td>업무 규칙 실행</td>
+<td>rules.yaml(when, requires, result, evidence, overrides, version_selection)</td>
+<td>7-2의 규칙 평가 코드(ch07/rules.py), 6-2의 시점 조회 SQL</td>
+<td>규정 담당자가 규칙과 조항 대조</td>
+</tr>
+<tr>
+<td>데이터 검증</td>
+<td>model.yaml 의 attributes·cardinality</td>
+<td>6-2·6-5의 스키마 제약(NOT NULL, CHECK, 유효기간 배타 제약)</td>
+<td>개발자가 적재 시 검증</td>
+</tr>
+<tr>
+<td>에이전트 행동 제어</td>
+<td>rules.yaml 의 hold_policy, approval_authority</td>
+<td>7-3의 프롬프트·도구 정의, 7-4의 답변 형식 검증</td>
+<td>운영자가 오답·과잉 답변 검토</td>
+</tr>
+</tbody>
+</table>
+<p>한 가지 주의할 점이 있습니다. approval_authority 와 hold_policy 는 rules.yaml 에 있지만 성격은 에이전트 제어에 가깝습니다. 규칙 파일에 둔 이유는 근거 조항(ops_manual:3, ops_manual:1)과 함께 관리하기 위해서이지, 규칙 평가기가 승인을 처리하기 때문이 아닙니다. 파일의 위치와 층의 소속이 항상 일치하지는 않으며, 소속을 분명히 아는 것이 더 중요합니다.</p>
+<p>"미사용" 정의로 돌아가 보겠습니다. 이 정의는 네 층에 각각 다른 모습으로 나타납니다.</p>
+<table>
+<thead>
+<tr>
+<th>층</th>
+<th>"미사용"이 나타나는 모습</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>의미 정의</td>
+<td>glossary.yaml 의 Unused 항목: 정의, 출처(2판 2조 1항), 1판에는 정의가 없다는 메모, "기록 없음은 미확인"이라는 주의</td>
+</tr>
+<tr>
+<td>업무 규칙 실행</td>
+<td>monthly_full_refund 의 when 에 unused == true, requires 에 docs_created·logins</td>
+</tr>
+<tr>
+<td>데이터 검증</td>
+<td>usage 테이블의 docs_created·logins 가 0 이상 정수라는 CHECK 제약</td>
+</tr>
+<tr>
+<td>에이전트 행동 제어</td>
+<td>사용량 unknown 이면 "미사용"이라고 말하지 않고 보류 형식으로 출력</td>
+</tr>
+</tbody>
+</table>
+<p>같은 개념이 층마다 다른 일을 합니다. 정의는 한 곳에, 조건은 규칙에, 형식은 제약에, 행동은 제어에 있습니다.</p>
+<h3 id="_9">체크리스트</h3>
+<p>새 항목을 어디에 넣을지 망설여질 때 다음 순서로 물어봅니다.</p>
+<ol>
+<li>이것은 "무엇인가"에 대한 답인가. 그렇다면 의미 정의입니다. 여러 규칙·질문에서 반복해 쓰이는 명사라면 개념으로, 한 개념의 다른 표현이라면 용어 사전으로 갑니다.</li>
+<li>이것은 "이 상황에서 어떤 결론인가"에 대한 답인가. 그렇다면 규칙입니다. 조건(when), 필요한 사실(requires), 결론(result), 근거(evidence)를 모두 적을 수 있어야 합니다. 하나라도 못 적으면 아직 규칙이 아니라 정의나 메모입니다.</li>
+<li>이것은 규정 판이나 시점에 따라 값이 바뀌는가. 그렇다면 개념 정의에 값을 넣지 말고 규칙의 params 나 policy_versions 로 갑니다.</li>
+<li>이것은 저장된 값이 말이 되는지에 대한 검사인가. 그렇다면 스키마 제약입니다. 업무상 허용 여부가 아니라 값의 형식·범위·유일성만 다룹니다.</li>
+<li>이것은 AI가 해도 되는 일과 안 되는 일에 대한 것인가. 그렇다면 에이전트 제어입니다. 규칙 결과를 받아 행동으로 옮기며, 프롬프트와 출력 검증 코드가 함께 맡습니다.</li>
+<li>한 항목이 두 층에 걸치면 층마다 다른 모습으로 나눠 적습니다. "미사용"처럼 정의·조건·제약·행동으로 나뉘는 것이 정상입니다.</li>
+<li>규정이 개정되었을 때 어느 파일을 고쳐야 하는지 미리 말할 수 있는가. 대답이 "전부"라면 경계가 무너진 것입니다. 노트클라우드에서 4조가 개정되면 rules.yaml 의 연간 규칙과 policy_versions, 조항 테이블만 바뀌고 model.yaml 은 그대로여야 합니다.</li>
+</ol>
+<h3 id="_10">정리</h3>
+<ul>
+<li>의미 정의, 업무 규칙 실행, 데이터 검증, 에이전트 행동 제어는 각각 "무엇인가", "어떤 결론인가", "값이 맞는가", "무엇을 해도 되는가"에 답하는 다른 층입니다. 참조는 의미 정의에서 규칙과 검증으로, 규칙에서 제어로 한 방향으로 흐릅니다.</li>
+<li>온톨로지에 규칙을 넣으면 개념이 조건 조합만큼 폭발하고, 규칙에 정의를 넣으면 공유된 정의가 깨지며, 검증에 규칙을 넣으면 기록이 사라지고, 프롬프트에 전부 넣으면 1장의 오답이 재현됩니다.</li>
+<li>이 책에서는 model.yaml·glossary.yaml 이 의미 정의, rules.yaml 과 7장 평가 코드가 규칙, 6장 스키마 제약이 검증, 7장 프롬프트·도구·출력 검증이 제어를 맡습니다.</li>
+<li>새 항목은 체크리스트 일곱 가지로 자리를 정합니다. 규정이 바뀔 때 고칠 파일을 미리 말할 수 있으면 경계가 잘 서 있는 것입니다. 다음 장에서 이 경계를 지키면서 PostgreSQL 스키마를 만듭니다.</li>
+</ul>
+        
+    
+</div>
+<div class="muted text-right" style="font-size: 0.9em;margin:10px 0;">
+    
+        마지막 편집일시 : 2026년 9월 8일 1:54 오전
+    
+</div>
+
+<!-- google adsense -->
+
+    <!-- PC -->
+
+    
+        
+            <div class="wikidocs-ad-block" style="margin:30px 0;"><div class="clearfix ad-container"
+     style="display: flex;
+            justify-content: flex-start">
+    <div class="first-ad ad-container" style="margin-right: 30px;">
+        
+            <div class="ad-wrapper">
+                <div class="ad-placeholder">
+                    광고가 출력될 위치입니다.
+                </div>
+                <script async
+                        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"
+                        crossorigin="anonymous"></script>
+                <ins class="adsbygoogle wikidocs-ad"
+                     style="display:inline-block;
+                            width:336px;
+                            height:280px"
+                     data-ad-client="ca-pub-9470517771012578"
+                     data-full-width-responsive="false"
+                     data-ad-format="false"
+                     data-ad-slot="6452842464"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        
+    </div>
+    <div class="second-ad ad-container">
+        
+            <div class="ad-wrapper">
+                <div class="ad-placeholder">
+                    광고가 출력될 위치입니다.
+                </div>
+                <script async
+                        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"
+                        crossorigin="anonymous"></script>
+                <ins class="adsbygoogle wikidocs-ad"
+                     style="display:inline-block;
+                            width:336px;
+                            height:280px"
+                     data-ad-client="ca-pub-9470517771012578"
+                     data-full-width-responsive="false"
+                     data-ad-format="false"
+                     data-ad-slot="6452842464"></ins>
+                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+            </div>
+        
+    </div>
+</div>
+</div>
+        
+    
+
+<!-- Mobile -->
+
+
+
+<!-- google adsense -->
+<div class="clearfix">
+    <a href="javascript:show_comments();" class="label label-info">댓글 0</a>
+    <a href="#myModal"
+       data-toggle="modal"
+       title="피드백을 남겨주세요"
+       class="label label-info">피드백</a>
+</div>
+<div class="user_comments" style="display:none">
+    <div class="comments" id="page_all_comments">
+
+    
+
+</div>
+    
+        <a href="/loginForm" class="text-info" style="font-size:12px">※ 댓글 작성은 로그인이 필요합니다.</a>
+        <a href="#myModal" data-toggle="modal" style="font-size:12px">(또는 피드백을 이용해 주세요.)</a>
+    
+</div>
+<div class="page-prev-next">
+<div class="clearfix">
+    <div class="pull-left">
+        <ul>
+            
+                <li>
+                    <strong>이전글</strong> : <a class="prev_page_link"
+    href="/426502"
+    data-wikidocs-reader-link>05-4. 정보가 부족할 때: 판단 보류와 추가 질문</a>
+                </li>
+            
+            
+                <li>
+                    <strong>다음글</strong> : <a class="next_page_link"
+    href="/426504"
+    data-wikidocs-reader-link>06. PostgreSQL로 의미 모델 구현하기</a>
+                </li>
+            
+        </ul>
+    </div>
+</div>
+</div>
+
+</div>
+</div>
+    </div>
+    <div class="btn-group pull-right menu-group wikidocs-reader-menu-group"
+     role="group">
+    <button class="btn btn-xs btn-default menu_link menu-toggle">
+        <i class="glyphicon glyphicon-menu-hamburger" title="사이드바 토글"></i>
+    </button>
+</div>
+<div class="menu-wikidocs"></div>
+
+    <div style="display:none" class="prev_next_indicator">
+
+    <a class="prev_icon"
+       href="/426502"
+       role="button"
+       data-wikidocs-reader-link>
+        <span class="glyphicon glyphicon-chevron-left" style="font-size:2em;"></span>
+    </a>
+
+
+    <a class="next_icon"
+       href="/426504"
+       role="button"
+       data-wikidocs-reader-link>
+        <span class="glyphicon glyphicon-chevron-right" style="font-size:2em;"></span>
+    </a>
+
+
+</div>
+    
+<!-- Modal -->
+<div id="myModal"
+     class="modal fade"
+     tabindex="-1"
+     role="dialog"
+     aria-labelledby="myModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h3 id="myModalLabel" class="modal-title">이 페이지에 대한 피드백을 남겨주세요</h3>
+            </div>
+            <div class="modal-body">
+                <form class="form" role="form">
+                    <input type="hidden"
+                           name="page_id"
+                           id="feedback-page-id"
+                           value="426503" />
+                    <div class="form-group">
+                        <label class="control-label" for="email">답장받을 이메일 주소</label>
+                        <div class="">
+                            <input class="form-control"
+                                   type="text"
+                                   id="email"
+                                   placeholder="Email"
+                                   >
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="control-label" for="feedback">하고 싶은 말</label>
+                        <div class="controls">
+                            <textarea class="form-control" id="feedback" rows="5"></textarea>
+                        </div>
+                    </div>
+                    <p style="font-size:12px;">※ 피드백은 저자에게 e-메일로 전달됩니다.</p>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-dismiss="modal">Close</button>
+                <button class="btn btn-primary" id="feedback_btn">전송하기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    
+<!-- Modal -->
+<div id="reportModal"
+     class="modal fade"
+     tabindex="-1"
+     role="dialog"
+     aria-labelledby="reportModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h3 id="reportModalLabel" class="modal-title">댓글을 신고합니다.</h3>
+            </div>
+            <div class="modal-body">
+                <form class="form" role="form">
+                    <input type="hidden" name="comment_id" id="comment_id" />
+                    해당 댓글을 신고하시겠습니까? 댓글 신고는 다음과 같은 경우에 사용해주세요:
+                    <ol>
+                        <li>스팸 또는 광고성 내용이 포함된 경우</li>
+                        <li>욕설, 비방, 개인정보 유출 등 부적절한 내용이 포함된 경우</li>
+                        <li>저작권을 침해하는 내용이 포함된 경우</li>
+                    </ol>
+                    <div class="form-group">
+                        <label class="control-label" for="report">신고 사유를 입력해 주세요.</label>
+                        <div class="controls">
+                            <textarea class="form-control" id="report" rows="5"></textarea>
+                        </div>
+                    </div>
+                    <p style="font-size:12px;">
+                        ※ 신고하신 내용은 관리자에게 전달되며, 확인 후 적절한 조치가 이루어집니다. 신고는 익명으로 처리되며, 신고자의 정보는 공개되지 않습니다.
+                    </p>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" data-dismiss="modal">Close</button>
+                <button class="btn btn-primary" id="report_btn">전송하기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    
+
+
+    
+    <a href="/"
+       class="label label-default wikidocs-home"
+       data-toggle="popover"
+       data-placement="left"
+       data-content="위키독스 홈">
+        <span class="glyphicon glyphicon-home"></span>
+    </a>
+    <a class="label label-default dark_btn toggle-theme"
+       data-toggle="popover"
+       data-placement="left"
+       data-content="다크모드">
+        <span class="glyphicon glyphicon-adjust"></span>
+    </a>
+    <a href="#top"
+       class="label label-default back-to-top"
+       data-toggle="popover"
+       data-placement="left"
+       data-content="맨위로">
+        <span class="glyphicon glyphicon-arrow-up"></span>
+    </a>
+
+<!-- 책갈피 모달 -->
+<div class="modal fade"
+     id="bookmarkModal"
+     tabindex="-1"
+     role="dialog"
+     aria-labelledby="bookmarkModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="bookmarkModalLabel">책갈피</h4>
+            </div>
+            <div class="modal-body bookmark-body">
+                <!-- 여기에 동적 데이터가 로드됩니다 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary">추가</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        </div>
+        
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+                integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+                crossorigin="anonymous"></script>
+        <script>
+        const staticFiles = {
+            mainLight: "https://static.wikidocs.net/static/book/css/style_stack.min.css",
+            mainDark: "https://static.wikidocs.net/static/book/css/style_stack_dark.min.css",
+            markdownLight: "https://static.wikidocs.net/static/book/css/markdown_stack.min.css",
+            markdownDark: "https://static.wikidocs.net/static/book/css/markdown_stack_dark.min.css",
+            highlightLight: "//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/default.min.css",
+            highlightDark: "//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/atom-one-dark.min.css"
+        };
+        </script>
+        <script type="text/javascript"
+                src="https://static.wikidocs.net/static/book/js/common.min.js?v=1098"></script>
+        <script type="text/javascript"
+                src="https://static.wikidocs.net/static/book/js/utils.min.js?v=1098"></script>
+        <script type="text/javascript"
+                src="https://static.wikidocs.net/static/book/js/base.min.js?v=1098"></script>
+        
+    
+
+<script type="text/javascript"
+        src="https://static.wikidocs.net/static/apprise/apprise-1.5.min.js?v=1098"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js"></script>
+<script src="https://static.wikidocs.net/static/book/js/page_static.min.js?v=1098"></script>
+<script id="MathJax-script"
+        async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    
+
+        
+    <script src="https://static.wikidocs.net/static/book/js/toc.min.js?v=1098"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        const isDark = document.body.dataset.isDarkmode === 'true';
+        mermaid.initialize({ startOnLoad: false, theme: isDark ? 'dark' : 'default' });
+        let mermaidQueue = Promise.resolve();
+        window.renderWikiDocsMermaid = function(root = document) {
+            root.querySelectorAll('pre code.language-mermaid').forEach((el) => {
+                const pre = el.parentElement;
+                const div = document.createElement('div');
+                div.className = 'mermaid';
+                div.textContent = el.textContent;
+                pre.replaceWith(div);
+            });
+            const nodes = root.querySelectorAll('.mermaid:not([data-processed="true"])');
+            if (!nodes.length) return mermaidQueue;
+            mermaidQueue = mermaidQueue.then(() => mermaid.run({ nodes }));
+            return mermaidQueue;
+        };
+        await window.renderWikiDocsMermaid(document);
+    </script>
+    <script>
+        let wikidocsAdObserver = null;
+        const wikidocsAdScriptPromises = new Map();
+
+        function hideUnfilledAds(root = document) {
+            root.querySelectorAll('ins.adsbygoogle[data-ad-status="unfilled"]').forEach((ad) => {
+                const adWrapper = ad.closest(".dynamic-ad, .ad-wrapper");
+                if (adWrapper) {
+                    adWrapper.style.display = "none";
+                    adWrapper.style.height = "0";
+                    adWrapper.style.minHeight = "0";
+                }
+
+                const slotWrapper = ad.closest(".first-ad, .second-ad");
+                if (slotWrapper) {
+                    slotWrapper.style.display = "none";
+                    slotWrapper.style.height = "0";
+                    slotWrapper.style.minHeight = "0";
+                }
+            });
+
+            root.querySelectorAll(".wikidocs-ad-block").forEach((block) => {
+                const ads = Array.from(block.querySelectorAll("ins.adsbygoogle"));
+                const filledAds = ads.filter((ad) => {
+                    const status = ad.getAttribute("data-ad-status");
+                    return status === "filled" || status === "unfill-optimized";
+                });
+                const pendingAds = ads.filter((ad) => {
+                    return !ad.getAttribute("data-ad-status");
+                });
+                if (ads.length > 0 && filledAds.length === 0 && pendingAds.length === 0) {
+                    block.style.display = "none";
+                }
+            });
+        }
+
+        function loadWikiDocsAdScript(clientId) {
+            if (!clientId || window.adsbygoogle?.loaded) return Promise.resolve();
+            if (wikidocsAdScriptPromises.has(clientId)) {
+                return wikidocsAdScriptPromises.get(clientId);
+            }
+            const scriptUrl = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
+            let script = Array.from(document.querySelectorAll("script[src]")).find((candidate) => candidate.src === scriptUrl);
+            const promise = new Promise((resolve) => {
+                if (!script) {
+                    script = document.createElement("script");
+                    script.async = true;
+                    script.src = scriptUrl;
+                    script.crossOrigin = "anonymous";
+                    document.head.appendChild(script);
+                }
+                if (window.adsbygoogle?.loaded) {
+                    resolve();
+                    return;
+                }
+                script.addEventListener("load", resolve, { once: true });
+                script.addEventListener("error", resolve, { once: true });
+                window.setTimeout(resolve, 1500);
+            });
+            wikidocsAdScriptPromises.set(clientId, promise);
+            return promise;
+        }
+
+        window.initWikiDocsAds = function(root = document, registerSlots = false) {
+            const ads = Array.from(root.querySelectorAll("ins.adsbygoogle"));
+            if (!ads.length) return;
+            if (!wikidocsAdObserver) {
+                wikidocsAdObserver = new MutationObserver((mutations) => {
+                    mutations.forEach(() => hideUnfilledAds(document));
+                });
+            }
+            ads.forEach((ad) => {
+                wikidocsAdObserver.observe(ad, {
+                    attributes: true,
+                    attributeFilter: ["data-ad-status"],
+                });
+                if (!registerSlots || ad.dataset.wikidocsAdInitialized === "true" || ad.dataset.adsbygoogleStatus) return;
+                ad.dataset.wikidocsAdInitialized = "true";
+                loadWikiDocsAdScript(ad.dataset.adClient).then(() => {
+                    try {
+                        (window.adsbygoogle = window.adsbygoogle || []).push({});
+                    } catch (error) {
+                        ad.dataset.wikidocsAdInitialized = "false";
+                    }
+                });
+            });
+            hideUnfilledAds(root);
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            window.initWikiDocsAds(document, false);
+        });
+    </script>
+    <script src="https://static.wikidocs.net/static/book/js/page.min.js?v=1098"></script>
+    
+    <script src="https://static.wikidocs.net/static/book/js/reader.min.js?v=1098"></script>
+
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a45a23e25fe5d809',t:'MTc5MTE3OTMzNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

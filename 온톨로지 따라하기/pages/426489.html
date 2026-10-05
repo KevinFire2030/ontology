@@ -1,0 +1,155 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>03-2. Python 환경과 LLM API 설정</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426489">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>03-2. Python 환경과 LLM API 설정</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">가상 환경과 패키지 설치</a></li>
+<li><a href="#api-env">API 키와 .env</a></li>
+<li><a href="#llm">다른 LLM 공급자로 바꾸기</a></li>
+<li><a href="#llm_1">공통 LLM 모듈</a></li>
+<li><a href="#_2">연결 확인 스크립트</a></li>
+<li><a href="#_3">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> Python 3.10 / psycopg 3 / openai SDK 1.x 실측 기준 (LLM 호출은 OpenAI API 기준으로 서술)</p>
+</blockquote>
+<p>데이터베이스가 준비되었으니 이제 Python 환경과 LLM API를 연결합니다. 이 책은 특정 프레임워크에 기대지 않습니다. 필요한 것은 데이터베이스 드라이버, 임베딩·채팅 API 클라이언트, 그리고 설정 파일을 읽는 도구 정도입니다. 얇게 유지한 이유는 독자가 자기 프레임워크로 옮기기 쉽게 하기 위해서입니다.</p>
+<h3 id="_1">가상 환경과 패키지 설치</h3>
+<pre><code class="language-bash">git clone https://github.com/ady95/ontology-tutorial.git
+cd ontology-tutorial
+python -m venv .venv
+</code></pre>
+<p>가상 환경을 활성화합니다. Windows는 첫 줄, macOS와 Linux는 둘째 줄입니다.</p>
+<pre><code class="language-bash">.venv\Scripts\activate
+source .venv/bin/activate
+</code></pre>
+<pre><code class="language-bash">python -m pip install -r requirements.txt
+</code></pre>
+<p>requirements.txt의 내용입니다.</p>
+<pre><code>psycopg[binary]&gt;=3.1
+pgvector&gt;=0.2.5
+openai&gt;=1.40
+python-dotenv&gt;=1.0
+pyyaml&gt;=6.0
+pgserver&gt;=0.1.4 ; platform_system != "Linux" or platform_machine == "x86_64"
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>패키지</th>
+<th>역할</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>psycopg</td>
+<td>PostgreSQL 드라이버 (3.x)</td>
+</tr>
+<tr>
+<td>pgvector</td>
+<td>psycopg에 vector 타입을 등록해 Python 리스트를 그대로 넣고 꺼냄</td>
+</tr>
+<tr>
+<td>openai</td>
+<td>채팅·임베딩 API 클라이언트. 호환 API에도 사용</td>
+</tr>
+<tr>
+<td>python-dotenv</td>
+<td>.env 파일을 환경변수로 읽음</td>
+</tr>
+<tr>
+<td>pyyaml</td>
+<td>질문 세트와 의미 모델 파일(YAML) 읽기</td>
+</tr>
+<tr>
+<td>pgserver</td>
+<td>내장 PostgreSQL (03-1 경로 2)</td>
+</tr>
+</tbody>
+</table>
+<p>pip 명령이 없다고 나오면 python -m pip 형태로 실행하세요. 집필 환경의 Git Bash에서도 pip 단독 명령은 경로에 없었습니다.</p>
+<h3 id="api-env">API 키와 .env</h3>
+<p>예제 저장소의 .env.example을 복사해 .env를 만들고 값을 채웁니다.</p>
+<pre><code class="language-bash">cp .env.example .env
+</code></pre>
+<pre><code># LLM (OpenAI API 기준. 다른 공급자는 OPENAI_BASE_URL 변경)
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-5.6-luna
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIM=1536
+
+# PostgreSQL (docker compose 기본값)
+DATABASE_URL=postgresql://ontology:ontology@localhost:5432/ontology
+# DATABASE_URL을 비우면 내장 PostgreSQL(pgserver 패키지)을 자동으로 띄웁니다
+</code></pre>
+<p>.env는 .gitignore에 들어 있어 커밋되지 않습니다. API 키를 코드나 노트북에 직접 적지 마세요. 이 책의 코드는 키를 오직 환경변수에서만 읽습니다.</p>
+<p>모델 선택에 대해 한마디 덧붙입니다. 이 책에 실린 정답률·토큰·시간 수치는 모두 gpt-5.6-luna로 측정했습니다. 더 큰 모델을 쓰면 기본 RAG의 정답률이 올라갈 수 있지만, 이 책의 관심은 "같은 모델에서 구성을 바꾸면 무엇이 달라지는가"이므로 모델은 처음부터 끝까지 고정했습니다. 그래서 예제 저장소의 기본값도 같은 모델로 두었습니다. 독자가 다른 모델을 쓰면 절대 수치는 달라지고 경향은 대체로 유지됩니다. 어떤 모델로 쟀는지는 08-1의 재현 기록 표에도 적어 두었습니다.</p>
+<p>모델에 따라 API가 받는 인자도 다릅니다. temperature를 받지 않는 모델이 있어서, 공통 모듈은 temperature를 넣어 호출했다가 거부되면 빼고 다시 호출하고 그 사실을 기억합니다. 이 책의 실측도 temperature를 넘기지 않은 상태로 이뤄졌습니다.</p>
+<h3 id="llm">다른 LLM 공급자로 바꾸기</h3>
+<p>OpenAI 호환 API를 제공하는 공급자라면 OPENAI_BASE_URL과 모델 이름만 바꾸면 됩니다. 사내 프록시, Azure OpenAI, 로컬 추론 서버(vLLM, Ollama의 OpenAI 호환 모드 등)가 여기에 해당합니다.</p>
+<p>주의할 점은 임베딩 차원입니다. text-embedding-3-small은 1536차원이고, 다른 임베딩 모델은 차원이 다릅니다. EMBEDDING_DIM을 모델에 맞게 바꾸지 않으면 테이블 생성 시 vector(1536) 컬럼과 맞지 않아 삽입이 실패합니다. 차원을 바꾼 뒤에는 인덱스를 다시 만들어야 합니다.</p>
+<p>호환 API가 아닌 공급자(예: 다른 SDK를 써야 하는 경우)는 common/llm.py의 chat()과 embed() 두 함수만 바꾸면 됩니다. 나머지 코드는 이 두 함수만 호출합니다.</p>
+<h3 id="llm_1">공통 LLM 모듈</h3>
+<p>common/llm.py는 세 가지 일을 합니다. 모델과 온도를 고정하고, 호출 횟수·토큰·시간을 누적하고, JSON 응답을 받는 편의 함수를 제공합니다.</p>
+<pre><code class="language-python"># common/llm.py 발췌
+LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-5.6-luna")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
+EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "1536"))
+
+def chat(system: str, user: str, *, json_mode: bool = False, temperature: float = 0.0) -&gt; str:
+    t = time.time()
+    kwargs = {}
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    resp = client().chat.completions.create(
+        model=LLM_MODEL,
+        temperature=temperature,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        **kwargs,
+    )
+    usage.calls += 1
+    usage.prompt_tokens += resp.usage.prompt_tokens
+    usage.completion_tokens += resp.usage.completion_tokens
+    usage.seconds += time.time() - t
+    return resp.choices[0].message.content or ""
+</code></pre>
+<p>온도를 0으로 고정한 것은 재현성 때문입니다. 완전히 같은 답이 보장되지는 않지만 실행 간 편차가 줄어듭니다. 토큰과 시간을 누적하는 usage 객체는 8-6에서 구성별 비용을 비교할 때 씁니다.</p>
+<h3 id="_2">연결 확인 스크립트</h3>
+<p>세 가지(데이터베이스, 채팅, 임베딩)가 모두 동작하는지 한 번에 확인합니다.</p>
+<pre><code class="language-bash">python ch03/check_env.py
+</code></pre>
+<pre><code class="language-python"># ch03/check_env.py 발췌
+print("[1] PostgreSQL 접속")
+with db.connect() as conn:
+    ver = conn.execute("select version()").fetchone()[0]
+    vec = conn.execute("select extversion from pg_extension where extname='vector'").fetchone()[0]
+    age = conn.execute("select 1 from pg_available_extensions where name='age'").fetchone()
+print("    ", ver.split(",")[0])
+print("     pgvector:", vec, "/ Apache AGE:", "사용 가능" if age else "없음 (09장 AGE 절만 영향)")
+
+print("[2] LLM 호출:", llm.LLM_MODEL)
+answer = llm.chat("한 문장으로 답하세요.", "PostgreSQL을 한 문장으로 설명해 주세요.")
+
+print("[3] 임베딩:", llm.EMBEDDING_MODEL)
+vec = llm.embed(["환불 규정"])[0]
+print("     차원:", len(vec))
+</code></pre>
+<p>정상이면 다음과 비슷한 출력이 나옵니다. 아래 출력의 LLM 답변 부분은 작성 예시이며, 실제 답변 문장은 실행마다 다를 수 있습니다.</p>
+<pre><code>[1] PostgreSQL 접속
+     PostgreSQL 16.2 on x86_64-pc-mingw64
+     pgvector: 0.6.2 / Apache AGE: 없음 (09장 AGE 절만 영향)
+[2] LLM 호출: gpt-5.6-luna
+     PostgreSQL은 확장성과 표준 준수를 갖춘 오픈소스 관계형 데이터베이스입니다.
+[3] 임베딩: text-embedding-3-small
+     차원: 1536
+[OK] 준비 완료. usage = {'calls': 1, 'prompt_tokens': ..., 'completion_tokens': ..., 'embed_tokens': ..., 'seconds': ...}
+</code></pre>
+<p>[1]에서 멈추면 03-1의 데이터베이스 문제이고, [2]에서 멈추면 API 키나 BASE_URL 문제, [3]에서 차원이 1536이 아니면 EMBEDDING_DIM을 맞춰야 합니다.</p>
+<h3 id="_3">정리</h3>
+<ul>
+<li>의존 패키지는 여섯 개뿐이며, LLM 호출은 common/llm.py의 chat()과 embed() 두 함수로 모입니다.</li>
+<li>API 키는 .env에만 두고, 모델은 실험 내내 고정합니다.</li>
+<li>호환 API로 바꿀 때는 BASE_URL·모델 이름·임베딩 차원 세 가지를 맞춥니다.</li>
+<li>다음 절에서 예제 저장소의 구조와 실행 순서를 봅니다.</li>
+</ul>
+</div></body></html>

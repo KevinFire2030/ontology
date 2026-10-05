@@ -1,0 +1,207 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>08-3. 구성 3: SQL 조회·규칙 처리를 결합한 RAG</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426519">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>08-3. 구성 3: SQL 조회·규칙 처리를 결합한 RAG</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#3">구성 3이 더한 것</a></li>
+<li><a href="#_1">결과</a></li>
+<li><a href="#_2">새로 맞힌 질문</a></li>
+<li><a href="#6">여전히 틀린 질문 6개</a></li>
+<li><a href="#_3">이 결과가 말하는 것</a></li>
+<li><a href="#_4">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> ontology-tutorial 구성 3 실행 결과 기준 · PostgreSQL 16.2 + pgvector 0.6.2 · 수치는 모델·환경에 따라 달라지므로 경향에 주목</p>
+</blockquote>
+<p>구성 2에 정형 데이터 조회와 규칙 처리를 더한 구성 3입니다. 의미 모델은 아직 없습니다. 이 절의 목적은 "데이터와 규칙만으로 어디까지 가는가"를 확인하고, 그 뒤에 남는 오류가 정확히 무엇인지 보는 것입니다. 남는 오류가 4장·5장에서 설계한 것과 일치한다면, 구성 4의 효과를 의미 모델에 귀속시킬 근거가 생깁니다.</p>
+<h3 id="3">구성 3이 더한 것</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>구성 2</th>
+<th>구성 3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>정형 데이터</td>
+<td>없음</td>
+<td>질문에서 정규식으로 고객 ID·장애 ID·날짜·좌석 수를 뽑아 SQL 조회</td>
+</tr>
+<tr>
+<td>규칙</td>
+<td>없음</td>
+<td>rules.py를 현재 규정 기준(policy_mode="current")으로 호출</td>
+</tr>
+<tr>
+<td>판 선택·유리한 규정·준용</td>
+<td>없음</td>
+<td>없음</td>
+</tr>
+<tr>
+<td>정보 부족 시 보류</td>
+<td>없음</td>
+<td>없음 (기록 없음을 미사용으로 취급)</td>
+</tr>
+<tr>
+<td>답변 프롬프트</td>
+<td>조항 + 질문</td>
+<td>조항 + 조회된 사실과 규칙 판단 + 질문</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-python"># ch08/configs.py 발췌 — 정규식으로 개체를 찾고 규칙을 현재 규정 기준으로 평가
+cust = _CUST.search(question)
+ctx = api.customer_context(cust.group()) if cust else None
+if ctx:
+    facts.append(f"고객 {ctx['customer_id']}: {ctx['customer_type']}, 요금제 {ctx['plan']}, ... ")
+    if seats:
+        v = rules.evaluate_seat_change(ctx, int(seats.group(2)))
+    elif "환불" in question:
+        v = rules.evaluate_refund(ctx, as_of, policy_mode="current", requester_role=role)
+        facts.append(f"환불 판단(현재 규정 기준 규칙): {v.result}, 금액 {v.amount:,}원, 승인자 {v.approver}")
+</code></pre>
+<p>프롬프트에 들어가는 사실은 이런 모습입니다.</p>
+<pre><code>고객 C004: individual, 요금제 pro, 결제 주기 yearly, 결제일 2025-06-20, 결제액 179,000원, ...
+환불 판단(현재 규정 기준 규칙): 일할 환불, 금액 131,332원, 승인자 팀장
+  - 결제 후 80일 경과 (30일 초과). 잔여 284일/365일 일할 139,277원에서 연간 할인 35,800원의
+    사용 81일분 7,945원 환수 → 131,332원 (제2판 4조 2항)
+</code></pre>
+<h3 id="_1">결과</h3>
+<table>
+<thead>
+<tr>
+<th>유형</th>
+<th>구성 2</th>
+<th>구성 3</th>
+<th>변화</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>기준선</td>
+<td>3/3</td>
+<td>3/3</td>
+<td></td>
+</tr>
+<tr>
+<td>검색 R</td>
+<td>0/1</td>
+<td>0/1</td>
+<td></td>
+</tr>
+<tr>
+<td>데이터 D</td>
+<td>2/11</td>
+<td>10/11</td>
+<td>+8</td>
+</tr>
+<tr>
+<td>의미 M</td>
+<td>2/4</td>
+<td>3/4</td>
+<td>+1 (Q20)</td>
+</tr>
+<tr>
+<td>규칙 K</td>
+<td>6/11</td>
+<td>8/11</td>
+<td>+2 (Q15, Q18)</td>
+</tr>
+<tr>
+<td><strong>전체</strong></td>
+<td><strong>13/30</strong></td>
+<td><strong>24/30</strong></td>
+<td>+11</td>
+</tr>
+<tr>
+<td>토큰</td>
+<td>37,632</td>
+<td>38,841</td>
+<td>사실 몇 줄이 더해진 정도</td>
+</tr>
+</tbody>
+</table>
+<p>가장 큰 도약입니다. 데이터 문제 11개 중 10개가 풀렸습니다. 이 도약은 온톨로지와 무관합니다. 회사가 이미 가진 테이블을 파이프라인에 연결한 것뿐입니다. 02-3에서 "DB를 잘 설계하면 필요 없는" 범위가 바로 이것입니다.</p>
+<p>회귀는 없었습니다. 첫 채점에서 Q03이 오답으로 바뀐 것처럼 보였지만 "반환되지는 않습니다"라는 표현 차이였고, 핵심어 정비 후 정답으로 돌아왔습니다(08-1의 핵심어 정비 원칙).</p>
+<h3 id="_2">새로 맞힌 질문</h3>
+<p><strong>금액 계산이 정확해졌습니다.</strong> Q11(19,900원), Q13(199,000원), Q17(607,838원, 운영 책임자), Q25(829원 크레딧)는 규칙이 계산한 숫자를 LLM이 그대로 옮겼습니다. 07-2에서 규칙을 코드로 두기로 한 이유가 결과로 나타납니다.</p>
+<p><strong>Q22 프로모션 결제 환불 불가.</strong> 규칙이 프로모션 코드와 30일 경과를 확인해 불가로 판단했고, 답변은 결제일·금액·사용량을 근거로 나열했습니다.</p>
+<p><strong>Q15는 규칙이 아니라 LLM이 맞혔습니다.</strong> 구성 3의 규칙은 "오늘" 기준으로만 평가하므로 2025-07-10 시점의 판단을 하지 못합니다. 그런데 답변은 이랬습니다.</p>
+<pre><code>고객 C004는 2025년 6월 20일 결제했지만, 제2판의 고객에게 유리한 조항인 연간 구독 결제 후
+30일 이내 전액 환불을 적용할 수 있습니다. 2025년 7월 10일은 결제 후 20일째이므로, 환불액은
+179,000원 전액입니다. 처리 기록에는 "약관 9조 3항 적용"을 남겨야 합니다.
+</code></pre>
+<p>검색된 운영 매뉴얼 2절 2항(유리한 조항 적용 절차)을 읽고 LLM이 스스로 판단한 것입니다. 맞는 답이지만 재현이 보장되지 않습니다. 같은 판단을 Q14에서는 하지 못했기 때문입니다.</p>
+<h3 id="6">여전히 틀린 질문 6개</h3>
+<table>
+<thead>
+<tr>
+<th>질문</th>
+<th>유형</th>
+<th>구성 3의 답</th>
+<th>무엇이 빠졌나</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q09 학생 연간 환불 기준</td>
+<td>M</td>
+<td>"베이직 규정을 따르지만 연간 기준은 자료에 없음"</td>
+<td>준용 관계 탐색</td>
+</tr>
+<tr>
+<td>Q14 C004 오늘 환불</td>
+<td>K</td>
+<td>131,332원, 2판 4조 2항 적용</td>
+<td>왜 2판인지(1판 대상인데 유리한 규정 적용) 설명 없음</td>
+</tr>
+<tr>
+<td>Q19 C007 환불</td>
+<td>K</td>
+<td>"전액 환불 19,900원, 사용 기록 없음"</td>
+<td>기록 없음을 미사용으로 단정. 보류 없음</td>
+</tr>
+<tr>
+<td>Q21 C009 인증 만료 갱신</td>
+<td>K</td>
+<td>"미사용 요건 미충족, 환불 불가"</td>
+<td>규칙은 전액 환불이라 했는데 LLM이 뒤집음</td>
+</tr>
+<tr>
+<td>Q29 재점검 대상</td>
+<td>D</td>
+<td>조건 설명만</td>
+<td>조건에 맞는 구독을 찾는 조회 없음</td>
+</tr>
+<tr>
+<td>Q30 4조 개정 시 점검 문서</td>
+<td>R</td>
+<td>매뉴얼 6절 내용 요약</td>
+<td>인용 관계</td>
+</tr>
+</tbody>
+</table>
+<p>이 여섯 개가 이 책의 핵심입니다. 하나씩 보겠습니다.</p>
+<p><strong>Q14는 숫자가 맞는데 오답입니다.</strong> 규칙이 현재 규정(2판)만 알기 때문에 2판으로 계산했고, 우연히 그것이 유리한 판이라 금액은 131,332원으로 맞았습니다. 그러나 "결제일이 1판 기간인데 왜 2판을 적용하는가"에 답하지 못합니다. 담당자가 고객에게 설명할 수 없는 답입니다. 결제일로 판을 고르고 두 판을 비교하는 규칙은 규정 판이라는 개념과 유효기간이 있어야 만들 수 있습니다.</p>
+<p><strong>Q19는 02-2에서 예고한 닫힌 세계 오답입니다.</strong> 사용량 행이 없는 C007을 규칙이 "사용 기록 없음"으로 읽고 전액 환불로 판단했습니다. "기록 없음은 미확인이지 미사용이 아니다"라는 문장은 의미 모델(has_usage 관계의 note, Unused 개념의 정의)에 있고, 구성 3에는 없습니다.</p>
+<p><strong>Q21은 규칙이 맞고 LLM이 틀렸습니다.</strong> 규칙 층의 출력을 직접 확인하면 다음과 같습니다.</p>
+<pre><code>환불 판단(현재 규정 기준 규칙): 전액 환불, 금액 9,900원, 승인자 상담원
+  - 학생 요금제는 베이직 규정을 준용합니다 (제2판 6조 1항)
+  - 학생 인증 만료 후 베이직 가격으로 갱신된 결제 → 사용 여부와 무관하게 전액 환불
+</code></pre>
+<p>그런데 답변은 "미사용 요건을 충족하지 않아 환불 대상이 아닙니다"였습니다. 구성 3의 답변 프롬프트에는 "규칙 판단을 바꾸지 말라"는 지시가 없습니다. LLM이 검색된 3조 1항(미사용 조건)을 읽고 규칙을 뒤집은 것입니다. 5-5에서 말한 에이전트 행동 제어가 없으면 규칙을 잘 만들어도 소용이 없다는 사례입니다.</p>
+<p><strong>Q09와 Q30은 관계 탐색이 없어서</strong>, <strong>Q29는 조건에 맞는 구독을 찾는 조회가 없어서</strong> 그대로입니다.</p>
+<h3 id="_3">이 결과가 말하는 것</h3>
+<ul>
+<li>정형 데이터 조회와 규칙 계산은 데이터 문제 대부분(10/11)과 계산이 필요한 규칙 문제를 풉니다. 온톨로지 없이 얻을 수 있는 이득이며, 가장 큽니다.</li>
+<li>남는 오류 6개는 모두 "정의·관계·시점·미확인의 구분"에 해당합니다. 준용 관계, 규정 판과 유효기간, 미확인과 미사용의 구분, 인용 관계, 그리고 규칙 결과를 지키게 하는 행동 제어입니다.</li>
+<li>이것이 4장·5장에서 설계한 목록과 같다는 점이 중요합니다. 설계할 때 "온톨로지가 필요한 지점"으로 꼽은 것이 실험에서 그대로 남았습니다.</li>
+</ul>
+<h3 id="_4">정리</h3>
+<ul>
+<li>구성 3은 13개에서 24개로 올랐고, 그 도약은 온톨로지가 아니라 데이터 연결과 규칙 계산의 효과입니다.</li>
+<li>남은 오답 6개는 준용·판 선택·미확인 보류·인용 관계·행동 제어의 문제이며, 의미 모델이 다루는 영역과 일치합니다.</li>
+<li>다음 절에서 의미 모델을 더한 구성 4가 이 여섯 개 중 몇 개를 푸는지 봅니다.</li>
+</ul>
+</div></body></html>

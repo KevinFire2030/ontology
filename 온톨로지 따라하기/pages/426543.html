@@ -1,0 +1,159 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>부록D. 참고 자료와 심화 학습 경로</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426543">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>부록D. 참고 자료와 심화 학습 경로</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">이 책의 코드와 데이터</a></li>
+<li><a href="#postgresql">PostgreSQL과 확장</a></li>
+<li><a href="#_2">표준 기반 온톨로지 학습 경로</a></li>
+<li><a href="#graphrag">GraphRAG와 지식 그래프</a></li>
+<li><a href="#ontology">팔란티어 Ontology</a></li>
+<li><a href="#llm-api">LLM API와 평가</a></li>
+<li><a href="#_3">세무 사례 관련 공개 자료</a></li>
+<li><a href="#_4">관련 위키독스 도서</a></li>
+<li><a href="#_5">이 책 다음에 읽을 순서 (제안)</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 참고 자료 목록 — 링크는 집필 시점(2026년 9월) 기준</p>
+</blockquote>
+<p>이 책은 익숙한 PostgreSQL에서 출발해 온톨로지의 필요한 부분만 만들었습니다. 더 깊이 가려는 독자를 위해 방향별로 자료를 정리했습니다. 각 항목에 이 책의 어느 절과 이어지는지 적었습니다.</p>
+<h3 id="_1">이 책의 코드와 데이터</h3>
+<ul>
+<li>예제 코드 저장소: <a href="https://github.com/ady95/ontology-tutorial">https://github.com/ady95/ontology-tutorial</a></li>
+<li>위키독스 책 페이지: <a href="book-21274.html">https://wikidocs.net/book/21274</a></li>
+</ul>
+<h3 id="postgresql">PostgreSQL과 확장</h3>
+<table>
+<thead>
+<tr>
+<th>자료</th>
+<th>이어지는 절</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL 16 공식 문서: <a href="https://www.postgresql.org/docs/16/">https://www.postgresql.org/docs/16/</a></td>
+<td>6장 전체</td>
+</tr>
+<tr>
+<td>WITH 절과 재귀 질의: <a href="https://www.postgresql.org/docs/16/queries-with.html">https://www.postgresql.org/docs/16/queries-with.html</a></td>
+<td>09-2</td>
+</tr>
+<tr>
+<td>범위 타입과 EXCLUDE 제약: <a href="https://www.postgresql.org/docs/16/rangetypes.html">https://www.postgresql.org/docs/16/rangetypes.html</a></td>
+<td>06-2</td>
+</tr>
+<tr>
+<td>pgvector: <a href="https://github.com/pgvector/pgvector">https://github.com/pgvector/pgvector</a></td>
+<td>03-1, 06-3</td>
+</tr>
+<tr>
+<td>Apache AGE 매뉴얼: <a href="https://age.apache.org/age-manual/master/index.html">https://age.apache.org/age-manual/master/index.html</a></td>
+<td>09-2</td>
+</tr>
+<tr>
+<td>pgserver (내장 PostgreSQL 패키지): <a href="https://github.com/orm011/pgserver">https://github.com/orm011/pgserver</a></td>
+<td>03-1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">표준 기반 온톨로지 학습 경로</h3>
+<p>09-4에서 표준이 필요한 조건을 정리했습니다. 그 조건에 해당한다면 다음 순서를 권합니다.</p>
+<ol>
+<li><strong>RDF와 Turtle 문법.</strong> W3C RDF 1.1 Primer: <a href="https://www.w3.org/TR/rdf11-primer/">https://www.w3.org/TR/rdf11-primer/</a>. 이 책의 model.yaml을 Turtle로 옮겨 보는 것이 가장 빠른 연습입니다(09-4의 예시 참고).</li>
+<li><strong>SPARQL.</strong> W3C SPARQL 1.1 Query Language: <a href="https://www.w3.org/TR/sparql11-query/">https://www.w3.org/TR/sparql11-query/</a>. 09-2의 재귀 CTE 조회를 속성 경로로 다시 써 보세요.</li>
+<li><strong>OWL.</strong> W3C OWL 2 Primer: <a href="https://www.w3.org/TR/owl2-primer/">https://www.w3.org/TR/owl2-primer/</a>. 추론기가 실제로 무엇을 이끌어 내는지 작은 예로 확인한 뒤 필요 여부를 판단합니다.</li>
+<li><strong>SHACL(데이터 검증).</strong> W3C SHACL: <a href="https://www.w3.org/TR/shacl/">https://www.w3.org/TR/shacl/</a>. 05-5의 "데이터 검증" 층을 표준으로 옮길 때 해당합니다.</li>
+<li><strong>도구.</strong> Protégé(온톨로지 편집기): <a href="https://protege.stanford.edu/">https://protege.stanford.edu/</a>. Apache Jena: <a href="https://jena.apache.org/">https://jena.apache.org/</a>. RDF4J: <a href="https://rdf4j.org/">https://rdf4j.org/</a>.</li>
+<li><strong>온톨로지 설계 방법론.</strong> Noy와 McGuinness의 "Ontology Development 101"은 짧고 실용적인 입문 문서로 널리 인용됩니다. 4장의 절차와 비교해 읽으면 좋습니다.</li>
+</ol>
+<h3 id="graphrag">GraphRAG와 지식 그래프</h3>
+<table>
+<thead>
+<tr>
+<th>자료</th>
+<th>이어지는 절</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Microsoft GraphRAG 프로젝트: <a href="https://microsoft.github.io/graphrag/">https://microsoft.github.io/graphrag/</a></td>
+<td>02-4</td>
+</tr>
+<tr>
+<td>Neo4j의 GraphRAG 안내(제품 문서이므로 관점을 감안해 읽을 것): <a href="https://neo4j.com/generativeai/">https://neo4j.com/generativeai/</a></td>
+<td>02-4, 09-5</td>
+</tr>
+<tr>
+<td>Cypher 질의 언어 소개(openCypher): <a href="https://opencypher.org/">https://opencypher.org/</a></td>
+<td>09-2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ontology">팔란티어 Ontology</h3>
+<p>02-5에서 다룬 내용의 출처입니다. 제품 문서이므로 개념을 배우되 규모와 비용은 독자의 상황에 맞춰 판단하시기 바랍니다.</p>
+<ul>
+<li>Ontology 개요: <a href="https://www.palantir.com/docs/foundry/ontology/overview">https://www.palantir.com/docs/foundry/ontology/overview</a></li>
+<li>왜 온톨로지인가: <a href="https://www.palantir.com/docs/foundry/ontology/why-ontology">https://www.palantir.com/docs/foundry/ontology/why-ontology</a></li>
+<li>핵심 개념(객체 유형, 링크 유형, 액션 유형): <a href="https://www.palantir.com/docs/foundry/ontology/core-concepts">https://www.palantir.com/docs/foundry/ontology/core-concepts</a></li>
+</ul>
+<h3 id="llm-api">LLM API와 평가</h3>
+<table>
+<thead>
+<tr>
+<th>자료</th>
+<th>이어지는 절</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI API 문서(임베딩, JSON 모드, 도구 호출): <a href="https://platform.openai.com/docs">https://platform.openai.com/docs</a></td>
+<td>03-2, 07-1, 07-3</td>
+</tr>
+<tr>
+<td>이 책의 채점기는 규칙 기반이지만, LLM 판정(LLM-as-a-judge)을 보조로 쓰려면 판정 프롬프트의 편향과 재현성 문제를 먼저 확인할 것</td>
+<td>03-4, 08-1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_3">세무 사례 관련 공개 자료</h3>
+<p>10장은 공개 법령을 바탕으로 한 설계안입니다. 실제로 확장하려면 다음 1차 자료를 씁니다.</p>
+<ul>
+<li>국가법령정보센터(법제처): <a href="https://www.law.go.kr/">https://www.law.go.kr/</a> — 법령 조문과 개정 이력. 06-2의 조항 이력 모델링의 1차 자료</li>
+<li>국세법령정보시스템: <a href="https://taxlaw.nts.go.kr/">https://taxlaw.nts.go.kr/</a> — 법령, 예규, 판례, 질의회신. 10-2의 해석 층과 10-4의 해석 차이 자료. 예전 주소(txsi.hometax.go.kr)는 접속이 되지 않는 환경이 있습니다</li>
+<li>국세청 누리집: <a href="https://www.nts.go.kr/">https://www.nts.go.kr/</a> — 안내 자료와 FAQ. 실무 용어 층</li>
+</ul>
+<h3 id="_4">관련 위키독스 도서</h3>
+<p>같은 주제를 다른 관점에서 다룬 책들입니다. 각 책의 접근과 이 책의 차이를 한 줄로 적었습니다.</p>
+<ul>
+<li>온톨로지와 지식 그래프 — 의미 모델링에서 운영·GraphRAG까지: <a href="https://wikidocs.net/book/20789">https://wikidocs.net/book/20789</a> — 표준 기술로 하나의 프로젝트를 완성하는 접근</li>
+<li>AI Agent 시대, 기업은 왜 온톨로지가 필요한가: <a href="https://wikidocs.net/336599">https://wikidocs.net/336599</a> — 도입 이유와 시작 방법</li>
+<li>선행 온톨로지 모델 탐색: <a href="https://wikidocs.net/book/8452">https://wikidocs.net/book/8452</a> — 디지털 인문학 관점의 선행 모델</li>
+</ul>
+<h3 id="_5">이 책 다음에 읽을 순서 (제안)</h3>
+<table>
+<thead>
+<tr>
+<th>독자의 다음 관심</th>
+<th>권하는 경로</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>표준 기반으로 다시 만들고 싶다</td>
+<td>RDF Primer → SPARQL → Protégé로 model.yaml 재작성 → 09-4의 판단 기준 재검토</td>
+</tr>
+<tr>
+<td>그래프 DB로 옮겨야 할지 판단하고 싶다</td>
+<td>09-5 체크리스트 → Apache AGE로 clause_links 이전 실험 → 관리 부담 측정</td>
+</tr>
+<tr>
+<td>자기 업무에 적용하고 싶다</td>
+<td>10-5의 적용 순서 → 질문 30개 수집 → 01-2 진단표 → 4·5장 절차</td>
+</tr>
+<tr>
+<td>운영 체계를 세우고 싶다</td>
+<td>11장 → 검수 기록과 회귀 채점을 팀 절차로</td>
+</tr>
+</tbody>
+</table>
+</div></body></html>

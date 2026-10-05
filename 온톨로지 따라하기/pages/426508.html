@@ -1,0 +1,217 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>06-4. 의미 모델을 API로 노출하기</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426508">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>06-4. 의미 모델을 API로 노출하기</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">설계 원칙</a></li>
+<li><a href="#_2">규정 판·조항 함수</a></li>
+<li><a href="#_3">개념·용어 함수</a></li>
+<li><a href="#_4">정형 데이터 함수</a></li>
+<li><a href="#llm">LLM 도구로 노출하기</a></li>
+<li><a href="#_5">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> PostgreSQL 16.2 실측 기준 (ontology-tutorial ch06/api.py)</p>
+</blockquote>
+<p>테이블이 준비되었으니 이제 파이프라인이 쓸 조회 함수를 만듭니다. 이 함수들이 "의미 모델의 API"입니다. 7장의 파이프라인이 직접 호출하고, LLM에게 도구로 노출할 수도 있습니다. 이 절에서는 함수의 설계 원칙, 세 묶음의 함수, 그리고 실측 결과를 봅니다.</p>
+<h3 id="_1">설계 원칙</h3>
+<p>함수를 설계할 때 지킨 원칙은 세 가지입니다.</p>
+<ul>
+<li><strong>질문에 답하는 단위로 만든다.</strong> "테이블을 읽는다"가 아니라 "이 결제에 적용되는 판은 무엇인가", "이 조항이 바뀌면 무엇을 점검해야 하는가"처럼 업무 질문 하나에 함수 하나입니다.</li>
+<li><strong>사실만 돌려주고 판단하지 않는다.</strong> policy_version_for는 결제일에 유효한 판을 돌려줄 뿐, 유리한 규정을 고르지 않습니다. 판단은 07-2의 규칙 층이 합니다.</li>
+<li><strong>모르는 것은 모른다고 돌려준다.</strong> 사용량 기록이 없으면 None을 돌려주고, 호출한 쪽이 "미확인"으로 다룹니다. 기본값으로 0을 채우지 않습니다.</li>
+</ul>
+<h3 id="_2">규정 판·조항 함수</h3>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>입력</th>
+<th>돌려주는 것</th>
+<th>쓰이는 곳</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>policy_version_for</td>
+<td>결제 완료일</td>
+<td>그 날짜에 유효한 환불 규정 판 ID</td>
+<td>07-2 판 선택</td>
+</tr>
+<tr>
+<td>clause</td>
+<td>조항 ID</td>
+<td>조항 본문</td>
+<td>근거 표시</td>
+</tr>
+<tr>
+<td>clauses_of</td>
+<td>문서 ID, 조 번호</td>
+<td>그 조의 항 목록</td>
+<td>준용 조 전체 가져오기</td>
+</tr>
+<tr>
+<td>linked</td>
+<td>조항 ID, 관계, 방향</td>
+<td>연결된 조항·개념 ID 목록</td>
+<td>준용·대체·인용 탐색</td>
+</tr>
+<tr>
+<td>resolve_mutatis_mutandis</td>
+<td>조항 ID</td>
+<td>준용 대상 조항</td>
+<td>Q09, Q20</td>
+</tr>
+<tr>
+<td>superseded_by</td>
+<td>1판 조항 ID</td>
+<td>대체한 2판 조항</td>
+<td>판 비교 설명</td>
+</tr>
+<tr>
+<td>impact_of</td>
+<td>조항 ID</td>
+<td>인용하는 항목, 정의하는 개념, 준용하는 조항</td>
+<td>Q30, 11-2</td>
+</tr>
+</tbody>
+</table>
+<p>linked 함수 하나가 여러 함수의 바탕입니다. 방향을 뒤집는 reverse 인자가 있어 "이 조항이 가리키는 것"과 "이 조항을 가리키는 것"을 같은 방식으로 찾습니다.</p>
+<pre><code class="language-python"># ch06/api.py 발췌
+def linked(clause_id: str, rel: str, reverse: bool = False) -&gt; list[str]:
+    with db.connect() as c:
+        if reverse:
+            rows = c.execute("SELECT from_clause FROM clause_links WHERE rel=%s AND to_ref=%s ORDER BY 1",
+                             (rel, clause_id)).fetchall()
+        else:
+            rows = c.execute("SELECT to_ref FROM clause_links WHERE rel=%s AND from_clause=%s ORDER BY 1",
+                             (rel, clause_id)).fetchall()
+    return [r[0] for r in rows]
+</code></pre>
+<p>실측 결과입니다.</p>
+<pre><code>적용 판(2025-06-20 결제): refund_policy_v1
+적용 판(2025-08-20 결제): refund_policy_v2
+준용(refund_policy_v2:6.1): ['refund_policy_v2:3', 'refund_policy_v2:4']
+대체(refund_policy_v1:3.1 →): refund_policy_v2:4.1
+영향(refund_policy_v2:4.1): {'cited_by': ['faq:결제와 구독', 'ops_manual:2'], 'defines': [], 'applied_via_mutatis_mutandis_by': []}
+</code></pre>
+<p>마지막 줄이 Q30의 답입니다. 2판 4조 1항이 바뀌면 FAQ의 "결제와 구독" 절과 운영 매뉴얼 2절을 함께 점검해야 합니다. 이 답은 문서 검색으로는 나오지 않습니다. 질문에 "FAQ"나 "운영 매뉴얼"이라는 단어가 없기 때문입니다. 링크가 있어야 나옵니다.</p>
+<h3 id="_3">개념·용어 함수</h3>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>입력</th>
+<th>돌려주는 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>concept</td>
+<td>개념 ID</td>
+<td>정의, 상위 개념, 속성, 정의 조항</td>
+</tr>
+<tr>
+<td>normalize_term</td>
+<td>고객·문서의 표현</td>
+<td>해당할 수 있는 표준 용어 목록</td>
+</tr>
+</tbody>
+</table>
+<pre><code>개념(Unused): {'concept_id': 'Unused', 'label': '미사용',
+  'definition': '한 결제 주기 동안 새로 생성한 문서가 0건이고 로그인이 3회 이하인 상태 (제2판 2조 1항). ...',
+  'defined_in': ['refund_policy_v2:2.1']}
+용어('취소해 주세요'): [('CancellationRequest', '취소해 주세요'), ('PaymentReversalRequest', '취소')]
+</code></pre>
+<p>normalize_term이 후보를 하나가 아니라 목록으로 돌려주는 점이 중요합니다. "취소해 주세요"는 해지일 수도 결제 취소일 수도 있습니다. 함수가 임의로 하나를 고르면 4-2에서 정리한 용어 혼동이 코드 안에서 다시 일어납니다. 후보가 둘 이상이면 07-1의 질문 분석이 확인 요청을 냅니다.</p>
+<h3 id="_4">정형 데이터 함수</h3>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>입력</th>
+<th>돌려주는 것</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>customer_context</td>
+<td>고객 ID</td>
+<td>고객·구독·현재 주기 결제·사용량·팀 관리자를 한 번에</td>
+</tr>
+<tr>
+<td>plan_prices</td>
+<td>요금제, 날짜</td>
+<td>그 날짜의 월간·연간 정가</td>
+</tr>
+<tr>
+<td>incident</td>
+<td>장애 ID 또는 날짜</td>
+<td>장애 정보</td>
+</tr>
+<tr>
+<td>incidents_overlapping</td>
+<td>기간</td>
+<td>그 기간과 겹치는 장애</td>
+</tr>
+<tr>
+<td>subscriptions_paid_before</td>
+<td>날짜</td>
+<td>그 날짜 이전에 결제되어 유효한 구독</td>
+</tr>
+</tbody>
+</table>
+<p>customer_context는 조인 하나로 판단에 필요한 사실을 모읍니다. 사용량은 LEFT JOIN이라 기록이 없으면 NULL이 됩니다.</p>
+<pre><code class="language-python"># ch06/api.py 발췌
+d["usage_known"] = d["docs_created"] is not None
+d["unused"] = (d["docs_created"] == 0 and d["logins"] &lt;= 3) if d["usage_known"] else None
+</code></pre>
+<p>usage_known과 unused를 따로 두는 것이 "모르는 것은 모른다고 돌려준다" 원칙의 구현입니다. C007의 실측 결과입니다.</p>
+<pre><code>C007: {..., 'paid_at': datetime.date(2025, 9, 2), 'amount': 19900,
+       'docs_created': None, 'logins': None, 'usage_known': False, 'unused': None}
+</code></pre>
+<p>unused가 False가 아니라 None입니다. False였다면 "사용했다"는 뜻이 되어 환불 불가로 흘러가고, 기본값 True였다면 전액 환불로 흘러갑니다. None이어야 07-2에서 보류가 됩니다.</p>
+<p>plan_prices는 요금 안내 문서의 가격표를 코드에 둔 것입니다. 2025년 7월 1일 개정 전후 가격을 날짜로 구분합니다. 규모가 커지면 가격표도 유효기간을 가진 테이블로 옮기는 것이 맞습니다. 여기서는 06-2의 시점 패턴이 가격에도 똑같이 적용된다는 점만 보여 줍니다.</p>
+<p>subscriptions_paid_before는 Q29(규정 개정 시 재점검 대상)의 후보를 돌려줍니다.</p>
+<pre><code>개정 전 결제 유효 구독: [('C004', 'yearly', None, 'active'), ('C010', 'yearly', 'SPRING20', 'active'), ('C012', 'yearly', None, 'suspended')]
+</code></pre>
+<p>세 건이 후보이고, 이 중 실제 대상이 누구인지는 규칙(프로모션 기간 경과, 계정 정지)이 걸러냅니다. 함수는 후보를 주고 규칙이 판단합니다.</p>
+<h3 id="llm">LLM 도구로 노출하기</h3>
+<p>이 함수들은 그대로 LLM의 도구(function calling)로 등록할 수 있습니다. 이름과 입력이 이미 업무 질문 단위이기 때문입니다. 다만 이 책의 파이프라인은 도구 호출 방식을 쓰지 않고, 파이프라인 코드가 질문 분석 결과에 따라 함수를 직접 호출한 뒤 결과를 LLM에 넘깁니다. 두 방식의 비교는 07-3에서 다룹니다. 어느 쪽이든 함수 자체는 같습니다.</p>
+<table>
+<thead>
+<tr>
+<th>함수 시그니처</th>
+<th>설명 (도구 등록 시 description)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>policy_version_for(paid_at)</td>
+<td>결제 완료일에 적용되는 환불 규정 판을 돌려줍니다</td>
+</tr>
+<tr>
+<td>customer_context(customer_id)</td>
+<td>고객의 구독·현재 결제·사용량·계정 상태를 돌려줍니다. 사용량이 없으면 usage_known이 false입니다</td>
+</tr>
+<tr>
+<td>resolve_mutatis_mutandis(clause_id)</td>
+<td>조항이 준용하는 조항들을 돌려줍니다</td>
+</tr>
+<tr>
+<td>impact_of(clause_id)</td>
+<td>조항이 바뀌면 함께 점검할 문서 항목과 개념을 돌려줍니다</td>
+</tr>
+<tr>
+<td>normalize_term(text)</td>
+<td>표현에 해당할 수 있는 표준 용어 후보를 돌려줍니다. 둘 이상이면 확인이 필요합니다</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_5">정리</h3>
+<ul>
+<li>조회 함수는 업무 질문 단위로 만들고, 사실만 돌려주며, 모르는 것은 None으로 돌려줍니다.</li>
+<li>규정 판·조항 함수, 개념·용어 함수, 정형 데이터 함수 세 묶음이 있고 모두 SQL 한두 개입니다.</li>
+<li>준용·대체·인용 탐색은 linked 함수 하나에 방향 인자를 준 것이며, 영향 범위 조회가 Q30의 답을 냅니다.</li>
+<li>다음 절에서 스키마를 만들고 데이터를 적재하는 실습을 처음부터 끝까지 진행합니다.</li>
+</ul>
+</div></body></html>

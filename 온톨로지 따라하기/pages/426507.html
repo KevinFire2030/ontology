@@ -1,0 +1,159 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>06-3. 근거 문서·조항과 의미 모델 연결하기 (pgvector 결합)</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426507">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>06-3. 근거 문서·조항과 의미 모델 연결하기 (pgvector 결합)</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">조항 테이블</a></li>
+<li><a href="#_2">문서를 조항으로 나누기</a></li>
+<li><a href="#_3">조항 사이의 관계</a></li>
+<li><a href="#_4">임베딩 저장</a></li>
+<li><a href="#_5">벡터 검색과 관계 조회를 한 쿼리로</a></li>
+<li><a href="#_6">임베딩 갱신 전략</a></li>
+<li><a href="#_7">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> PostgreSQL 16.2 + pgvector 0.6.2 실측 기준 (임베딩 저장은 OpenAI API 기준으로 서술)</p>
+</blockquote>
+<p>답변에 근거를 붙이려면 근거의 단위가 있어야 합니다. 1장의 기본 RAG는 문서를 500자 단위로 잘랐고, 그 조각은 사람이 인용할 수 있는 단위가 아니었습니다. 이 절에서는 문서를 조·항 단위로 나누어 조항 테이블에 넣고, 조항 사이의 관계를 간선 테이블에 넣고, 조항 본문의 임베딩을 같은 테이블에 두어 벡터 검색과 관계 조회를 한 번에 할 수 있게 만듭니다.</p>
+<h3 id="_1">조항 테이블</h3>
+<pre><code class="language-sql">CREATE TABLE clauses (
+    clause_id  text PRIMARY KEY,                   -- 'refund_policy_v2:4.2'
+    doc_id     text NOT NULL REFERENCES policy_versions,
+    clause_no  text NOT NULL,                      -- '4.2' / '4' / '결제와 구독'
+    heading    text,
+    content    text NOT NULL,
+    embedding  vector(1536)
+);
+</code></pre>
+<p>조항 ID는 5-3에서 정한 형식 그대로입니다. 문서 ID와 조·항 번호를 콜론으로 잇습니다. 이 ID가 곧 인용 표기이므로, 질문 세트의 evidence, 규칙 파일의 evidence, 링크 파일의 from·to가 모두 같은 문자열을 씁니다. 한 곳에서 정한 ID 체계를 네 곳이 공유하는 것이 근거 연결의 전부입니다.</p>
+<h3 id="_2">문서를 조항으로 나누기</h3>
+<p>적재 스크립트가 마크다운을 읽어 조항을 만듭니다. 문서 종류에 따라 나누는 단위가 다릅니다.</p>
+<table>
+<thead>
+<tr>
+<th>문서</th>
+<th>구조</th>
+<th>조항 단위</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>환불 규정, 약관</td>
+<td>"제N조 (제목)" 아래 번호 항</td>
+<td>조 전체 + 항 각각</td>
+<td>refund_policy_v2:4, refund_policy_v2:4.1</td>
+</tr>
+<tr>
+<td>운영 매뉴얼</td>
+<td>"N. 제목" 아래 번호 항목</td>
+<td>절 전체 + 항목 각각</td>
+<td>ops_manual:2, ops_manual:2.2</td>
+</tr>
+<tr>
+<td>FAQ, 요금 안내</td>
+<td>절 제목만</td>
+<td>절 전체</td>
+<td>faq:결제와 구독</td>
+</tr>
+</tbody>
+</table>
+<p>조 전체와 항 각각을 둘 다 넣는 이유가 있습니다. 준용 관계는 "6조 1항은 3조와 4조를 준용한다"처럼 조 단위로 걸리고, 인용은 "운영 매뉴얼 2절 2항은 약관 9조 3항을 인용한다"처럼 항 단위로 걸립니다. 두 단위가 모두 있어야 링크를 자연스럽게 표현할 수 있습니다.</p>
+<pre><code class="language-python"># ch06/load_ontology.py 발췌
+m = re.match(r"제(\d+)조\s*\((.*?)\)", head)
+if m:  # 조·항 구조
+    art, title = m.group(1), m.group(2)
+    clauses.append({"clause_no": art, "heading": title, "content": f"제{art}조 ({title})\n{rest}"})
+    for im in re.finditer(r"^(\d+)\.\s+(.*?)(?=^\d+\.\s|\Z)", rest, re.S | re.M):
+        para = im.group(1)
+        clauses.append({"clause_no": f"{art}.{para}", "heading": title,
+                        "content": f"제{art}조 제{para}항: {im.group(2).strip()}"})
+</code></pre>
+<p>항의 본문 앞에 "제4조 제2항:"을 붙여 두는 것도 의도적입니다. 검색된 조각을 LLM에 넘길 때 그 조각이 어느 조항인지 본문 안에서도 보이게 하기 위해서입니다.</p>
+<p>적재 결과 108개 조항이 만들어졌습니다. 조항 하나를 확인해 보면 다음과 같습니다.</p>
+<pre><code>refund_policy_v2:4.2 -&gt; ('연간 구독의 환불',
+  '제4조 제2항: 30일이 지난 뒤 요청하면 잔여 기간을 일할 계산하여 환불합니다.
+   단, 연간 결제 할인으로 감면된 금액은 사용한 기간에 비례하여 환수합니다.')
+</code></pre>
+<h3 id="_3">조항 사이의 관계</h3>
+<pre><code class="language-sql">CREATE TABLE clause_links (
+    from_clause text NOT NULL REFERENCES clauses,
+    rel         text NOT NULL CHECK (rel IN ('supersedes','applies_mutatis_mutandis','cites','defines')),
+    to_ref      text NOT NULL,                     -- 조항 id 또는 'concept:ID'
+    PRIMARY KEY (from_clause, rel, to_ref)
+);
+</code></pre>
+<p>to_ref가 외래 키가 아닌 것은 대상이 조항일 수도 개념일 수도 있기 때문입니다. defines 관계는 조항이 개념을 정의한다는 뜻이고 대상이 "concept:Unused"처럼 개념 ID입니다. 참조 무결성은 적재 스크립트가 검사합니다. 실제로 첫 적재 때 이 검사가 잡아낸 것이 있었습니다.</p>
+<pre><code>경고: 존재하지 않는 조항·개념을 가리키는 링크 [{'from': 'refund_policy_v2:2.1', 'rel': 'defines', 'to': 'concept:Unused'}]
+</code></pre>
+<p>"미사용"이 용어 사전에는 있었지만 개념 목록에는 없었던 것입니다. 사용량에서 계산되는 파생 상태라 개념으로 두지 않았는데, 조항이 정의하는 대상이라면 개념이어야 합니다. model.yaml에 Unused를 파생 개념으로 추가해 해결했습니다. 적재 시 검사가 모델의 빈틈을 찾아 준 사례입니다.</p>
+<p>적재된 링크는 56개입니다.</p>
+<table>
+<thead>
+<tr>
+<th>관계</th>
+<th>수</th>
+<th>뜻</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>supersedes</td>
+<td>13</td>
+<td>2판 조항이 1판 조항을 대체</td>
+</tr>
+<tr>
+<td>applies_mutatis_mutandis</td>
+<td>2</td>
+<td>준용 (학생 6조 1항 → 3조, 4조)</td>
+</tr>
+<tr>
+<td>cites</td>
+<td>28</td>
+<td>운영 매뉴얼·FAQ·요금 안내 항목이 근거로 삼는 조항</td>
+</tr>
+<tr>
+<td>defines</td>
+<td>13</td>
+<td>조항이 개념을 정의</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_4">임베딩 저장</h3>
+<p>조항 본문의 임베딩은 같은 테이블의 embedding 컬럼에 둡니다. 적재 스크립트에 --embed 옵션을 주면 채워집니다.</p>
+<pre><code class="language-python"># ch06/load_ontology.py 발췌
+rows = conn.execute("SELECT clause_id, content FROM clauses ORDER BY clause_id").fetchall()
+vecs = llm.embed([r[1] for r in rows])
+for (cid, _), v in zip(rows, vecs):
+    conn.execute("UPDATE clauses SET embedding=%s WHERE clause_id=%s", (v, cid))
+</code></pre>
+<p>108개 조항이므로 임베딩 비용은 무시할 수준입니다. 임베딩 없이 적재하는 옵션을 따로 둔 이유는 조항·링크·개념 테이블은 API 키 없이도 쓸 수 있어야 하기 때문입니다. 06-4의 조회 함수와 07-2의 규칙 평가는 임베딩을 쓰지 않습니다.</p>
+<h3 id="_5">벡터 검색과 관계 조회를 한 쿼리로</h3>
+<p>조항 테이블에 임베딩이 있으면 유효기간 필터와 벡터 검색을 한 번에 할 수 있습니다.</p>
+<pre><code class="language-sql">SELECT c.clause_id, p.title, p.valid_from, p.valid_to, c.content,
+       1 - (c.embedding &lt;=&gt; :qv) AS score
+FROM clauses c JOIN policy_versions p USING (doc_id)
+WHERE c.embedding IS NOT NULL
+  AND p.valid_from &lt;= :as_of AND (p.valid_to IS NULL OR p.valid_to &gt;= :as_of)
+ORDER BY c.embedding &lt;=&gt; :qv
+LIMIT 8;
+</code></pre>
+<p>1장의 기본 RAG와 다른 점은 세 가지입니다. 조각이 조항 단위이고, 문서 제목과 유효기간이 함께 나오며, 기준일에 유효하지 않은 판을 걸러냅니다. 이것이 8-2에서 "검색 개선"이라고 부르는 구성 2의 전부입니다. 아직 의미 모델은 쓰지 않았습니다.</p>
+<p>검색된 조항에 링크를 더하는 것은 그다음 단계입니다. 예를 들어 학생 요금제 질문에 6조 1항이 검색되면, 준용 링크를 따라 3조와 4조를 함께 가져옵니다. 이것은 구성 4(07-2)에서 합니다.</p>
+<pre><code class="language-python"># ch07/pipeline.py 발췌
+for cid in clause_ids:
+    seen.append(cid)
+    for nxt in api.linked(cid, "applies_mutatis_mutandis"):
+        if nxt not in seen:
+            seen.append(nxt)
+</code></pre>
+<h3 id="_6">임베딩 갱신 전략</h3>
+<p>조항 본문이 바뀌면 임베딩도 다시 만들어야 합니다. 규모가 작을 때는 전체를 다시 만드는 것이 가장 단순하고 안전합니다. 규모가 커지면 본문의 해시를 함께 저장해 두고 해시가 바뀐 조항만 다시 임베딩합니다. 어느 쪽이든 원칙은 같습니다. 임베딩은 본문에서 파생된 값이므로 본문이 원본이고, 임베딩이 없거나 오래되어도 조항 조회와 규칙 평가는 동작해야 합니다.</p>
+<h3 id="_7">정리</h3>
+<ul>
+<li>조항 ID 하나를 질문 세트·규칙·링크·테이블이 공유하는 것이 근거 연결의 핵심입니다.</li>
+<li>문서 종류에 따라 조 전체와 항 각각을 모두 조항으로 넣어 준용(조 단위)과 인용(항 단위)을 표현합니다.</li>
+<li>링크의 참조 무결성을 적재 시 검사하면 모델의 빈틈(정의 대상이 개념에 없음)이 드러납니다.</li>
+<li>임베딩은 조항 테이블의 컬럼이며, 유효기간 필터와 벡터 검색을 한 쿼리로 합칠 수 있습니다.</li>
+<li>다음 절에서 이 테이블들을 조회 함수로 감싸 파이프라인과 LLM이 쓰게 합니다.</li>
+</ul>
+</div></body></html>

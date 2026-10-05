@@ -1,0 +1,213 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>04-2. 용어 사전 만들기: 같은 말, 다른 뜻 구분하기</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426494">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>04-2. 용어 사전 만들기: 같은 말, 다른 뜻 구분하기</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">문서마다 어휘가 다른 지점 찾기</a></li>
+<li><a href="#_2">용어 사전의 최소 형식</a></li>
+<li><a href="#_3">함정이 되는 항목들</a><ul>
+<li><a href="#_4">미사용은 미확인이 아니다</a></li>
+<li><a href="#_5">결제 완료일에는 이름이 넷 있다</a></li>
+<li><a href="#_6">팀원이 나갔는데</a></li>
+<li><a href="#_7">서비스가 안 됐던 시간</a></li>
+<li><a href="#_8">크레딧과 보상, 그리고 현금</a></li>
+</ul>
+</li>
+<li><a href="#_9">동의어·상위어를 어디에 두는가</a></li>
+<li><a href="#_10">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 설계 절차 설명 — 산출물은 ontology-tutorial 저장소 data/ontology/ 기준</p>
+</blockquote>
+<p>1장에서 기본 RAG가 틀린 답변 가운데 "의미 문제(M)"로 분류한 것들은 대부분 한 가지 원인으로 모입니다. 같은 말이 문서마다, 부서마다, 고객마다 다른 뜻으로 쓰이는데 시스템이 그것을 모른다는 것입니다. Q03에서 고객은 "해지하면 돈이 돌아오나요"라고 묻고, FAQ는 "구독 취소"라고 부르고, 약관은 "해지"와 "환불"을 4조에서 일부러 갈라 놓습니다. 이 절에서는 그 어긋남을 용어 사전(glossary)으로 고정합니다. 산출물은 data/ontology/glossary.yaml 입니다.</p>
+<h3 id="_1">문서마다 어휘가 다른 지점 찾기</h3>
+<p>노트클라우드 규정 문서 6종은 성격이 다릅니다. 약관과 환불 규정은 정의 조항을 갖춘 규범 문서이고, 운영 매뉴얼은 내부 지침이며, FAQ는 고객이 쓰는 말로 다시 쓴 안내문입니다. 여기에 고객이 실제로 하는 말까지 더하면 한 개념이 다섯 층의 어휘를 갖습니다. 개념 하나를 골라 문서 여섯 개와 고객 발화를 나란히 놓고 표를 채우면 어긋남이 눈에 들어옵니다.</p>
+<table>
+<thead>
+<tr>
+<th>표준 용어</th>
+<th>약관</th>
+<th>환불 규정</th>
+<th>운영 매뉴얼</th>
+<th>FAQ</th>
+<th>고객 발화</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CancellationRequest</td>
+<td>해지(4조 1항)</td>
+<td>해지(2판 2조 3항)</td>
+<td>해지</td>
+<td>구독 취소</td>
+<td>취소해 주세요</td>
+</tr>
+<tr>
+<td>RefundRequest</td>
+<td>환불(4조 2항)</td>
+<td>환불(2판 2조 2항)</td>
+<td>환불</td>
+<td>환불</td>
+<td>돈이 돌아오나요</td>
+</tr>
+<tr>
+<td>PaymentReversalRequest</td>
+<td>결제 취소(4조 3항)</td>
+<td>없음</td>
+<td>결제 취소(4절)</td>
+<td>없음</td>
+<td>취소</td>
+</tr>
+<tr>
+<td>Credit</td>
+<td>없음</td>
+<td>크레딧(8조)</td>
+<td>크레딧</td>
+<td>크레딧, 보상</td>
+<td>보상</td>
+</tr>
+<tr>
+<td>Unused</td>
+<td>없음</td>
+<td>미사용(2판 2조 1항), 1판은 정의 없음</td>
+<td>사용 여부</td>
+<td>이용하지 않았다면</td>
+<td>한 번도 쓰지 않았는데</td>
+</tr>
+<tr>
+<td>paid_at</td>
+<td>계약 성립일(2조 2항)</td>
+<td>결제 완료일</td>
+<td>결제 완료일, 갱신 결제일</td>
+<td>결제 후</td>
+<td>결제일, 어제 결제</td>
+</tr>
+<tr>
+<td>Seat</td>
+<td>좌석(1조 4항)</td>
+<td>좌석</td>
+<td>없음</td>
+<td>팀원</td>
+<td>팀원이 나갔는데</td>
+</tr>
+<tr>
+<td>Outage</td>
+<td>서비스 장애(7조 2항)</td>
+<td>서비스 중단, 장애</td>
+<td>장애</td>
+<td>서비스가 안 됐던 시간</td>
+<td>서비스가 안 됐는데</td>
+</tr>
+</tbody>
+</table>
+<p>표를 채우면서 알게 되는 것이 두 가지 있습니다. 첫째, 빈칸도 정보입니다. 약관에는 크레딧이 없고 FAQ에는 결제 취소가 없습니다. FAQ만 읽은 고객은 결제 취소라는 선택지를 모르니 "취소"라는 한 단어로 세 가지를 다 뜻하게 됩니다. 둘째, 고객 발화 열은 가장 짧고 가장 모호합니다. 운영 매뉴얼 4절이 "고객이 취소해 달라고 하면 해지·환불·결제 취소 중 무엇인지 먼저 확인한다"고 지침을 둔 이유입니다.</p>
+<h3 id="_2">용어 사전의 최소 형식</h3>
+<p>glossary.yaml 의 한 항목은 다음 형식입니다. CancellationRequest 항목을 그대로 옮겼습니다.</p>
+<pre><code class="language-yaml">- canonical: CancellationRequest
+  label: 해지
+  definition: 다음 결제 주기부터 구독을 갱신하지 않는 것. 금액 반환 없음.
+  surface_forms:
+    - {form: 해지, source: 약관 4조 1항 / 환불 규정 2판 2조 3항}
+    - {form: 구독 취소, source: FAQ "구독을 취소하고 싶어요" — 고객용 표현}
+    - {form: 취소해 주세요, source: 고객 발화 — 해지·환불·결제 취소 중 확인 필요}
+  confusable_with: [RefundRequest, PaymentReversalRequest]
+</code></pre>
+<p>필드는 다섯 개뿐이고 각각 이유가 있습니다.</p>
+<table>
+<thead>
+<tr>
+<th>필드</th>
+<th>뜻</th>
+<th>왜 필요한가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>canonical</td>
+<td>이 책과 시스템이 쓰는 표준 이름. model.yaml 의 개념 id 또는 속성명</td>
+<td>7장에서 질문 표현을 이 이름으로 정규화합니다. 개념과 같은 이름이어야 사전과 모델이 따로 놀지 않습니다</td>
+</tr>
+<tr>
+<td>label</td>
+<td>사람이 읽는 한글 이름</td>
+<td>검토와 상담 화면용</td>
+</tr>
+<tr>
+<td>definition</td>
+<td>한 문장 정의</td>
+<td>출처 조항의 정의를 옮기되, 출처가 없으면 운영 매뉴얼 기준으로 씁니다</td>
+</tr>
+<tr>
+<td>surface_forms</td>
+<td>실제 문서·발화에 나타나는 표현과 출처</td>
+<td>동의어 목록입니다. 출처를 함께 적어야 "이 표현은 FAQ에서만 쓴다"를 알 수 있습니다</td>
+</tr>
+<tr>
+<td>confusable_with</td>
+<td>동의어가 아닌데 같은 말로 불리는 다른 개념</td>
+<td>질문이 이 표현을 쓰면 어느 쪽인지 확인해야 한다는 신호입니다</td>
+</tr>
+</tbody>
+</table>
+<p>surface_forms 와 confusable_with 를 구분하는 것이 이 형식의 핵심입니다. "구독 취소"는 해지의 동의어이므로 surface_forms 에 들어갑니다. 반면 "환불"은 해지의 동의어가 아니라 고객이 해지와 헷갈리는 별개 개념이므로 confusable_with 에 들어갑니다. 둘을 한 목록에 넣으면 시스템이 "구독 취소"를 환불로 처리하는 일이 생깁니다.</p>
+<h3 id="_3">함정이 되는 항목들</h3>
+<h4 id="_4">미사용은 미확인이 아니다</h4>
+<p>환불 규정 제2판 2조 1항은 "미사용"을 "해당 결제 주기에 새로 생성한 문서 0건이고 로그인 3회 이하"로 정의합니다. 제1판에는 정의가 없어서 "서비스를 사용하지 않은 경우"라고만 되어 있습니다. 여기까지는 판 사이의 차이입니다. 진짜 함정은 데이터 쪽에 있습니다. Q19의 고객 C007은 사용량 기록이 아예 없습니다. 기록이 없는 것을 "문서 0건"으로 읽으면 전액 환불이라는 오답이 나옵니다. 정답은 "사용량을 확인한 뒤 결정"하는 보류입니다. glossary.yaml 의 Unused 항목에 note 로 이 구분을 적어 두었고, model.yaml 의 has_usage 관계에도 같은 메모가 있습니다.</p>
+<pre><code class="language-yaml">- canonical: Unused
+  label: 미사용
+  definition: 해당 결제 주기에 새로 생성한 문서 0건이고 로그인 3회 이하 (2판 2조 1항). 1판에는 정의가 없음.
+  note: 사용량 기록이 없으면 미사용이 아니라 "미확인"
+</code></pre>
+<h4 id="_5">결제 완료일에는 이름이 넷 있다</h4>
+<p>같은 날짜를 약관은 "계약 성립일", 환불 규정은 "결제 완료일", 운영 매뉴얼과 고객은 "결제일"이라고 부릅니다. 여기까지는 동의어입니다. 네 번째 표현 "갱신 결제일"이 문제입니다. 운영 매뉴얼 2절 3항은 자동 갱신 결제의 갱신일을 결제 완료일로 본다고 합니다. Q21의 C009는 첫 결제가 3월이지만 9월 3일에 갱신됐으므로 기준일은 9월 3일입니다. 첫 결제일을 기준으로 잡으면 "7일 이내"에서 탈락하는 오답이 나옵니다. 그래서 paid_at 항목의 surface_forms 에 갱신 결제일을 넣고 출처 옆에 "자동 갱신은 갱신일이 기준"이라고 적었습니다. confusable_with 에는 current_period_start 를 두었는데, 결제 주기 시작일과 결제 완료일이 보통 같지만 개념적으로 다르기 때문입니다.</p>
+<h4 id="_6">팀원이 나갔는데</h4>
+<p>FAQ의 "팀원이 나갔는데 요금이 바로 줄어드나요"는 사람 이야기처럼 읽히지만 답은 좌석 수 이야기입니다. 약관 1조 4항에서 좌석은 "사용자 계정 1개"이고, 좌석 축소는 다음 결제 주기부터 반영됩니다(Q07, Q16). 반면 Q23의 "팀원K1이 환불을 요청"에서 팀원은 진짜 사람(TeamMember)이고 관리자 여부가 문제입니다. 같은 "팀원"이 한쪽에서는 Seat, 다른 쪽에서는 TeamMember 입니다. 그래서 Seat 항목의 surface_forms 에 "팀원"을 넣되 출처 설명에 "사람이 아니라 좌석 수 문제"라고 적었습니다.</p>
+<h4 id="_7">서비스가 안 됐던 시간</h4>
+<p>고객은 서비스가 멈춘 시간을 모두 장애라고 부릅니다. 약관 7조 2항은 공지된 정기 점검을 장애로 보지 않습니다. Q27의 8월 24일 새벽은 정기 점검(INC-02)이라 보상 대상이 아닙니다. Outage 항목은 이 구분을 definition 에 담고 confusable_with 에 PlannedMaintenance 를 두었습니다. 04-3에서 Incident 를 Outage 와 PlannedMaintenance 로 나누는 근거가 여기서 나옵니다.</p>
+<h4 id="_8">크레딧과 보상, 그리고 현금</h4>
+<p>FAQ와 고객은 "보상"이라고 하고 규정은 "크레딧"이라고 합니다. 동의어이지만 크레딧은 현금이 아니라 다음 결제에서 차감되는 금액이라는 점이 자주 빠집니다(Q06). 게다가 제2판 8조 2항은 해지를 신청한 상태라면 현금으로 환불한다는 예외를 둡니다(Q28). Credit 항목은 confusable_with 에 RefundRequest 를 두어 "크레딧을 환불로 받을 수 있나"라는 질문이 오면 예외 조건을 확인하도록 했습니다.</p>
+<h3 id="_9">동의어·상위어를 어디에 두는가</h3>
+<div class="ad-wrapper markdown_tags">
+<script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"></script>
+<!-- markdown_tags -->
+<ins class="adsbygoogle" data-ad-client="ca-pub-9470517771012578" data-ad-format="false" data-ad-slot="4124294444" data-full-width-responsive="false" style="display:inline-block;width:300px;height:250px"></ins>
+<script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+</div>
+<p>용어 사전을 만들다 보면 세 가지를 한 파일에 몰아넣고 싶어집니다. 이 책은 역할별로 나눕니다.</p>
+<table>
+<thead>
+<tr>
+<th>관계</th>
+<th>두는 곳</th>
+<th>예</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>동의어(같은 뜻, 다른 표현)</td>
+<td>glossary.yaml 의 surface_forms</td>
+<td>해지 = 구독 취소</td>
+</tr>
+<tr>
+<td>혼동어(다른 뜻, 같은 표현)</td>
+<td>glossary.yaml 의 confusable_with</td>
+<td>취소 → 해지, 환불, 결제 취소</td>
+</tr>
+<tr>
+<td>상위어·하위어(종류 관계)</td>
+<td>model.yaml 의 subtypes</td>
+<td>CustomerRequest → RefundRequest 외 3종</td>
+</tr>
+</tbody>
+</table>
+<p>상위어를 사전에 두지 않는 이유는 종류 관계가 규정 적용 범위를 바꾸기 때문입니다. "환불 요청은 고객 요청의 한 종류"라는 사실은 어휘 문제가 아니라 모델의 구조 문제이고, 04-3에서 계층으로 다룹니다.</p>
+<p>한 가지 더, canonical 이 개념 id가 아닌 항목도 있습니다. paid_at 과 billing_cycle 은 속성명이고, full_refund_window 는 규칙에서 쓰는 매개변수입니다. 용어 사전은 개념 사전이 아니라 "질문 표현을 시스템 이름으로 바꾸는 표"이므로, 속성과 규칙 용어도 표현이 어긋나면 넣습니다. 다만 그런 항목은 모델 어디에도 대응물이 없을 수 있어서, 04-5의 검증 스크립트가 이를 경고로 표시합니다. Unused 는 처음에 규칙 용어로 두었다가, "미사용"과 "미확인"의 구분이 Q19의 답을 가르는 것을 보고 Usage 에서 계산되는 파생 개념으로 model.yaml 에 올렸습니다. 사전의 항목이 개념으로 승격되는 전형적인 경로입니다.</p>
+<h3 id="_10">정리</h3>
+<ul>
+<li>의미 문제의 대부분은 같은 말이 약관·규정·운영 매뉴얼·FAQ·고객 발화에서 다른 뜻으로 쓰이는 데서 옵니다. 개념 하나를 문서 여섯 개와 나란히 놓는 표로 어긋남을 찾았습니다.</li>
+<li>용어 사전의 최소 형식은 canonical, label, definition, surface_forms, confusable_with 다섯 필드입니다. 동의어와 혼동어를 다른 필드에 두는 것이 핵심입니다.</li>
+<li>미사용과 미확인, 결제 완료일과 갱신 결제일, 좌석과 팀원, 장애와 정기 점검, 크레딧과 현금은 사전에 명시하지 않으면 오답으로 이어지는 함정입니다.</li>
+<li>종류 관계(상위어·하위어)는 사전이 아니라 모델의 계층으로 다룹니다. 다음 절에서 그 계층과 관계를 정의합니다.</li>
+</ul>
+</div></body></html>

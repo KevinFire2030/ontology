@@ -1,0 +1,164 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>02-5. 팔란티어 Ontology에서 배울 점과 가져오지 않을 점</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426486">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>02-5. 팔란티어 Ontology에서 배울 점과 가져오지 않을 점</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">왜 팔란티어를 보는가</a></li>
+<li><a href="#ontology">팔란티어가 말하는 Ontology: 데이터·의사결정·실행의 연결</a></li>
+<li><a href="#_2">객체·링크·액션 모델에서 배울 것</a></li>
+<li><a href="#_3">우리 규모에서 가져오지 않아도 되는 것</a></li>
+<li><a href="#_4">이 책의 접근과 대응 관계</a></li>
+<li><a href="#_5">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 개념·설계 설명 — 예제는 ontology-tutorial 저장소의 노트클라우드 데이터 기준</p>
+</blockquote>
+<h3 id="_1">왜 팔란티어를 보는가</h3>
+<p>온톨로지를 검색하면 학술 자료 다음으로 많이 나오는 것이 팔란티어(Palantir)의 Foundry Ontology입니다. 이 회사는 온톨로지를 제품의 중심 개념으로 내세우고, "데이터가 아니라 의사결정을 표현한다"는 주장을 공식 문서에서 반복합니다. 이 절은 그 문서를 근거로 팔란티어가 말하는 온톨로지가 무엇인지 정확히 옮기고, 02-1에서 본 학술적 정의와 어디가 같고 다른지 짚은 뒤, 노트클라우드 규모의 시스템으로 가져올 것과 가져오지 않을 것을 가립니다. 이 절의 서술은 다음 공식 문서를 읽고 정리한 것이며, 문서에 없는 성능이나 효과에 대한 주장은 하지 않습니다.</p>
+<ul>
+<li>개요: <a href="https://www.palantir.com/docs/foundry/ontology/overview">https://www.palantir.com/docs/foundry/ontology/overview</a></li>
+<li>왜 온톨로지인가: <a href="https://www.palantir.com/docs/foundry/ontology/why-ontology">https://www.palantir.com/docs/foundry/ontology/why-ontology</a></li>
+<li>핵심 개념: <a href="https://www.palantir.com/docs/foundry/ontology/core-concepts">https://www.palantir.com/docs/foundry/ontology/core-concepts</a></li>
+<li>액션 유형: <a href="https://www.palantir.com/docs/foundry/action-types/overview">https://www.palantir.com/docs/foundry/action-types/overview</a></li>
+</ul>
+<h3 id="ontology">팔란티어가 말하는 Ontology: 데이터·의사결정·실행의 연결</h3>
+<p>개요 문서는 Ontology를 "조직을 위한 운영 계층(operational layer for the organization)"이라고 정의하고, 플랫폼에 통합된 데이터 자산 위에 놓여 그것을 현실의 개체와 연결한다고 설명합니다. 구성 요소는 크게 두 묶음으로 나뉩니다.</p>
+<ul>
+<li>의미 요소(semantic elements): 객체 유형(object type)과 링크 유형(link type). 데이터를 조직의 개념으로 대응시키는 층</li>
+<li>동적 요소(kinetic elements): 액션 유형(action type)과 함수(function). 변화를 일으키고 의사결정 과정을 담는 층</li>
+</ul>
+<p>"왜 온톨로지인가" 문서는 이 구분을 "명사와 동사"라는 비유로 설명합니다. 데이터(객체와 링크)는 조직의 명사이고, 액션은 동사이며, 둘을 논리(logic)로 이어야 온전한 문장, 곧 의사결정이 된다는 것입니다. 그리고 "Ontology는 기업의 데이터가 아니라 의사결정을 표현한다"고 씁니다. 전통적인 분석 아키텍처는 계산을 "살아 있는 현실 속에 놓지 못하고 운영과 단절되어 있다"는 비판이 이 주장의 배경입니다. 같은 문서는 온톨로지가 묶어야 할 네 요소로 데이터, 논리, 액션, 보안을 듭니다.</p>
+<p>핵심 개념 문서의 정의를 그대로 옮기면 다음과 같습니다.</p>
+<table>
+<thead>
+<tr>
+<th>요소</th>
+<th>문서의 정의</th>
+<th>DB에 대응시키면</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>객체 유형(object type)</td>
+<td>현실의 개체 또는 사건에 대한 스키마 정의</td>
+<td>테이블</td>
+</tr>
+<tr>
+<td>객체(object)</td>
+<td>객체 유형의 한 인스턴스</td>
+<td>행</td>
+</tr>
+<tr>
+<td>속성(property)</td>
+<td>현실 개체·사건의 특성에 대한 스키마 정의</td>
+<td>컬럼</td>
+</tr>
+<tr>
+<td>링크 유형(link type)</td>
+<td>두 객체 유형 사이 관계에 대한 스키마 정의</td>
+<td>조인</td>
+</tr>
+<tr>
+<td>액션 유형(action type)</td>
+<td>사용자가 한 번에 수행할 수 있는 객체·속성값·링크에 대한 변경 집합의 정의</td>
+<td>트랜잭션 + 그 규칙</td>
+</tr>
+<tr>
+<td>함수(function)</td>
+<td>입력을 받아 출력을 돌려주는 코드 기반 논리. 객체와 객체 집합을 입력으로 받음</td>
+<td>저장 프로시저</td>
+</tr>
+<tr>
+<td>인터페이스(interface)</td>
+<td>객체 유형의 모양과 능력을 기술하는 유형. 공통 형태를 가진 객체 유형들의 다형성 지원</td>
+<td>추상 타입</td>
+</tr>
+</tbody>
+</table>
+<p>오른쪽 열의 대응은 팔란티어 문서 자체가 제시하는 것입니다. 객체 유형은 데이터셋에, 객체는 행에, 속성은 컬럼에, 링크 유형은 조인에 비유한다고 적혀 있습니다. 02-2에서 "개념은 테이블, 관계는 외래 키처럼 보인다"고 한 것과 같은 출발점입니다.</p>
+<p>액션 유형 문서는 액션이 할 수 있는 일을 객체 생성, 속성값 변경, 객체 삭제, 링크 편집으로 열거하고, 사용자가 액션을 실행하면 변경이 Ontology에 반영된다고 설명합니다. 액션에는 누가 어떤 조건에서 실행할 수 있는지에 대한 제출 기준(submission criteria)이 붙고, 알림이나 웹훅 같은 부수 효과(side effect)를 걸 수 있으며, 복잡한 논리는 함수로 뒷받침할 수 있습니다.</p>
+<h3 id="_2">객체·링크·액션 모델에서 배울 것</h3>
+<p>02-1의 학술적 정의와 비교하면 객체 유형·속성·링크 유형은 개념·속성·관계와 거의 일대일입니다. 다른 점은 액션입니다. 그루버 계열의 정의에서 온톨로지는 "무엇이 있고 어떤 관계인가"를 다루며 "무엇을 할 수 있는가"는 범위 밖입니다. 팔란티어는 후자를 온톨로지 안에 넣었습니다. 여기서 세 가지를 배울 수 있습니다.</p>
+<p>첫째, 액션이 의미 모델의 일부라는 관점입니다. 노트클라우드에서 "환불 승인"은 결제·구독·사용량이라는 명사만으로는 설명되지 않습니다. 누가(팀 관리자만, 약관 8조), 어떤 조건에서(7일 이내·미사용), 어떤 승인 권한으로(10만원 이하는 상담원, 운영 매뉴얼 3절), 무엇을 바꾸는가(환불 기록 생성, 구독 상태 변경)까지 있어야 "환불 승인"이라는 동사가 완성됩니다. 이 책은 이것을 5장에서 규칙(rules.yaml)으로, 7장에서 파이프라인으로 구현하는데, 그 둘을 온톨로지와 별개의 층이 아니라 같은 모델의 동사 부분으로 보라는 것이 팔란티어의 관점입니다. 실제로 rules.yaml의 exclude_non_admin_team 규칙은 팔란티어 용어로 하면 환불 액션의 제출 기준이고, approval_authority 규칙은 액션에 붙는 승인 조건입니다.</p>
+<p>둘째, 객체 중심 사고입니다. RAG는 문서 조각 중심이고 SQL은 테이블 중심인데, 팔란티어의 화면과 API는 "고객 C004"라는 객체에서 출발해 그 구독, 결제, 적용 규정, 가능한 액션을 따라가는 구조입니다. 상담원이 실제로 일하는 방식이 그렇습니다. 고객 한 명을 열어 놓고 "이 사람에게 지금 무엇을 할 수 있는가"를 봅니다. 6-4에서 의미 모델을 API로 노출할 때 "조항을 검색한다"가 아니라 "이 결제에 적용되는 규정 판과 조항을 가져온다"는 객체 기준 함수로 설계하는 이유가 이것입니다.</p>
+<p>셋째, 의사결정을 데이터로 남긴다는 태도입니다. "왜 온톨로지인가" 문서는 실제 운영에서 생성되는 "의사결정 데이터(decision data)"를 강조합니다. 어떤 근거로 어떤 결정을 내렸는지가 기록되어야 조직이 배우고 AI가 안전하게 개입할 수 있다는 것입니다. 이 책에서 답변에 근거 조항과 적용 조건을 반드시 붙이는 것(7-4), 운영 매뉴얼이 "약관 9조 3항 적용"을 처리 기록에 남기라고 하는 것, 11-3에서 오답을 모델 개선으로 되돌리는 것이 같은 태도입니다.</p>
+<h3 id="_3">우리 규모에서 가져오지 않아도 되는 것</h3>
+<p>팔란티어의 Ontology는 플랫폼의 한 부분이며, 문서 자체가 데이터 통합, 파이프라인, 보안 정책, Object Explorer·Workshop 같은 애플리케이션과 함께 설명합니다. 노트클라우드 규모, 곧 문서 6종과 테이블 6개와 질문 30개에는 다음이 필요하지 않습니다.</p>
+<ul>
+<li>플랫폼 전체: 온톨로지를 쓰기 위해 데이터 파이프라인, 권한 관리, 화면 빌더까지 한 벌로 도입할 이유가 없습니다. 이 책의 온톨로지는 YAML 파일 세 개와 PostgreSQL 테이블 몇 개입니다.</li>
+<li>데이터 통합 계층: 팔란티어의 객체 유형은 여러 원천 데이터셋을 통합한 결과 위에 놓입니다. 우리는 원천이 CSV 몇 개이고 이미 한 DB 안에 있습니다. 원천이 수십 개일 때 생기는 문제는 그때 풀면 됩니다.</li>
+<li>보안·거버넌스 층: 문서는 마킹·목적·역할 기반 정책을 온톨로지의 네 요소 중 하나로 듭니다. 상담 답변 서비스에서는 승인 권한(운영 매뉴얼 3절)을 규칙 하나로 표현하는 것으로 충분합니다.</li>
+<li>인터페이스와 공유 속성: 객체 유형이 수백 개일 때 필요한 다형성 장치입니다. 개념 14개에서는 subtypes 한 줄이면 됩니다.</li>
+</ul>
+<p>가져오지 않는 이유는 그것들이 나쁘기 때문이 아니라 규모가 다르기 때문입니다. 이 책의 08-6에서 재는 "관리 부담"은 바로 이 층들을 얼마나 얇게 유지하느냐에 달려 있습니다.</p>
+<h3 id="_4">이 책의 접근과 대응 관계</h3>
+<p>팔란티어의 구성 요소를 이 책의 산출물에 대응시키면 다음과 같습니다.</p>
+<table>
+<thead>
+<tr>
+<th>팔란티어</th>
+<th>이 책</th>
+<th>파일·장</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>객체 유형</td>
+<td>개념(concepts)</td>
+<td>data/ontology/model.yaml, 4장</td>
+</tr>
+<tr>
+<td>객체</td>
+<td>개체(CSV 행, 테이블 행)</td>
+<td>data/structured/, 6-5</td>
+</tr>
+<tr>
+<td>속성</td>
+<td>attributes</td>
+<td>model.yaml</td>
+</tr>
+<tr>
+<td>링크 유형</td>
+<td>관계(relations), 방향·카디널리티 포함</td>
+<td>model.yaml, 6-1 관계 테이블</td>
+</tr>
+<tr>
+<td>인터페이스</td>
+<td>상위 개념과 subtypes</td>
+<td>model.yaml의 CustomerRequest</td>
+</tr>
+<tr>
+<td>액션 유형</td>
+<td>규칙(rules) + 답변 파이프라인</td>
+<td>data/ontology/rules.yaml, 5장, 7-2</td>
+</tr>
+<tr>
+<td>제출 기준</td>
+<td>requires 항목과 제외 규칙(priority)</td>
+<td>rules.yaml의 requires, exclude_*</td>
+</tr>
+<tr>
+<td>함수</td>
+<td>규칙 평가 코드와 조회 함수</td>
+<td>ch07/rules.py, 6-4</td>
+</tr>
+<tr>
+<td>의사결정 데이터</td>
+<td>근거·적용 조건이 붙은 답변 기록</td>
+<td>7-4, 11-3</td>
+</tr>
+<tr>
+<td>데이터 통합·보안·앱</td>
+<td>다루지 않음</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>대응표에서 눈여겨볼 것은 액션 줄입니다. 이 책은 의미 정의(model.yaml)와 규칙(rules.yaml)을 파일로 나누고, 5-5에서 의미 정의·업무 규칙·데이터 검증·에이전트 제어를 서로 다른 층으로 구분하라고 강조합니다. 팔란티어처럼 한 모델 안에 명사와 동사를 함께 두면 "환불 액션은 어떤 객체를 바꾸는가"가 한눈에 보이는 장점이 있고, 이 책처럼 나누면 규칙이 바뀔 때 개념 정의를 건드리지 않아도 되는 장점이 있습니다. 어느 쪽이든 동사가 명사를 참조하고 그 참조가 데이터로 남아 있다는 점은 같으며, rules.yaml의 모든 규칙이 evidence 항목으로 조항을 가리키는 것이 그 구현입니다.</p>
+<h3 id="_5">정리</h3>
+<ul>
+<li>팔란티어 Ontology는 객체 유형·속성·링크 유형(의미 요소)과 액션 유형·함수(동적 요소)로 이루어지며, "데이터가 아니라 의사결정을 표현한다"는 것이 공식 문서의 주장입니다.</li>
+<li>배울 점은 액션을 의미 모델의 일부로 보는 관점, 객체에서 출발하는 사고, 의사결정을 근거와 함께 데이터로 남기는 태도입니다.</li>
+<li>플랫폼 전체, 데이터 통합 계층, 보안 거버넌스, 인터페이스 같은 장치는 문서 6종·개념 14개 규모에서는 가져올 이유가 없습니다.</li>
+<li>다음 3장에서는 PostgreSQL과 pgvector, Python 환경을 준비하고, 이 장에서 이름만 부른 model.yaml과 rules.yaml을 실제로 실행하는 저장소 구조를 익힙니다.</li>
+</ul>
+</div></body></html>

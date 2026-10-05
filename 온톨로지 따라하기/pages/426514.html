@@ -1,0 +1,188 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>07-4. 답변에 근거와 적용 조건 붙이기</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426514">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>07-4. 답변에 근거와 적용 조건 붙이기</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">답변 형식 네 부분</a></li>
+<li><a href="#_2">근거 인용 규칙</a></li>
+<li><a href="#_3">보류 답변의 형식</a></li>
+<li><a href="#_4">프롬프트로 강제하는 것과 코드로 검사하는 것</a></li>
+<li><a href="#_5">답변에 넣지 않는 것</a></li>
+<li><a href="#_6">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 답변 형식 설계 설명 — 코드는 ontology-tutorial ch07/pipeline.py, common/evaluate.py 기준</p>
+</blockquote>
+<p>고객지원 담당자가 AI의 답을 믿고 쓰려면 결론만으로는 부족합니다. 어떤 조건에서 그 결론이 나왔고, 어느 조항이 근거이며, 무엇이 아직 확인되지 않았는지가 함께 있어야 담당자가 검토하고 책임질 수 있습니다. 이 절에서는 답변 형식 네 부분, 근거 인용 규칙, 보류 답변의 형식, 그리고 이 형식을 프롬프트로 어디까지 강제하고 코드로 어디까지 검사할 수 있는지를 봅니다.</p>
+<h3 id="_1">답변 형식 네 부분</h3>
+<table>
+<thead>
+<tr>
+<th>부분</th>
+<th>내용</th>
+<th>출처</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>결론</td>
+<td>가능·불가·금액·처리 방법. 한두 문장</td>
+<td>Verdict.result, amount, approver</td>
+</tr>
+<tr>
+<td>적용 조건</td>
+<td>어떤 조건이 충족되어 이 결론인지. 시점, 적용 판, 계산</td>
+<td>Verdict.notes, policy_version</td>
+</tr>
+<tr>
+<td>근거</td>
+<td>조항 ID 목록</td>
+<td>Verdict.evidence (+ 준용 확장)</td>
+</tr>
+<tr>
+<td>미확인 사항</td>
+<td>확인하지 못해 결론에 영향을 줄 수 있는 것. 없으면 "없음"</td>
+<td>Verdict.missing</td>
+</tr>
+</tbody>
+</table>
+<p>Q14에 대한 답변은 이런 모습이어야 합니다. 아래는 형식을 보여 주는 작성 예시이며 실제 출력은 07-5에서 확인합니다.</p>
+<pre><code>결론: 제2판 4조 2항을 적용해 약 131,332원을 환불합니다. 승인자는 팀장입니다.
+적용 조건: 결제일 2025-06-20은 제1판 기간이지만, 제2판(위약금 없음)이 고객에게 유리하므로
+  약관 9조 3항에 따라 제2판을 적용합니다. 결제 후 80일이 지나 전액 환불 기간(30일)을 넘겼으므로
+  잔여 284일을 일할 계산(139,277원)하고 연간 할인 35,800원의 사용 81일분(7,945원)을 환수합니다.
+  제1판을 적용했다면 위약금 10%를 공제해 125,349원입니다.
+근거: terms_of_service:2.2, terms_of_service:9.3, refund_policy_v2:4.2, refund_policy_v2:4.4,
+  refund_policy_v1:3.2, ops_manual:2.2, ops_manual:3
+미확인 사항: 없음
+</code></pre>
+<p>담당자는 결론만 읽고 처리할 수도 있고, 고객이 "왜 그 금액인가"를 물으면 적용 조건을 읽어 주면 되고, 규정 해석에 이견이 있으면 근거 조항을 찾아 확인하면 됩니다. 형식이 곧 업무 흐름입니다.</p>
+<h3 id="_2">근거 인용 규칙</h3>
+<ul>
+<li><strong>조항 ID를 그대로 쓴다.</strong> "환불 규정 4조"처럼 사람 말로 바꾸지 않습니다. refund_policy_v2:4.2는 판까지 특정하지만 "4조"는 1판인지 2판인지 알 수 없습니다.</li>
+<li><strong>프롬프트에 없는 조항을 인용하지 않는다.</strong> 답변 프롬프트가 근거 조항 본문을 함께 주므로, 답변은 그 안에서만 인용해야 합니다. 이 규칙은 프롬프트로 지시하고, 지켜졌는지는 결과 파일에 남는 인용 목록으로 사후에 대조합니다(아래).</li>
+<li><strong>준용 관계는 양쪽을 인용한다.</strong> 학생 요금제 질문이면 6조 1항(준용 근거)과 3조 또는 4조(실제 적용 조항)를 모두 적습니다. 한쪽만 적으면 "학생 조항에 30일이라는 말이 없는데?"라는 검토 질문에 답할 수 없습니다.</li>
+<li><strong>판 비교가 있었으면 양쪽 판을 인용한다.</strong> Q14처럼 1판과 2판을 비교했다면 두 판의 조항이 모두 근거입니다. 비교하지 않았다면 적용 판만 인용합니다.</li>
+</ul>
+<h3 id="_3">보류 답변의 형식</h3>
+<p>보류는 실패가 아니라 정답의 한 형태입니다. Q04, Q19, Q23이 보류가 정답이고, 5-4에서 설계한 hold_policy가 형식을 정합니다.</p>
+<pre><code>결론: 결론을 보류합니다. 사용량을 확인한 뒤 결정해야 합니다.
+적용 조건: 2025-09-02 결제로 6일 경과라 월간 전액 환불의 기간 요건(7일 이내)은 충족합니다.
+  그러나 이번 결제 주기의 사용량(문서 생성 수, 로그인 횟수) 기록이 없어 미사용 여부를
+  판정할 수 없습니다. 기록이 없는 것은 미사용이 아니라 미확인입니다.
+근거: terms_of_service:2.2, refund_policy_v2:3.1, refund_policy_v2:2.1, ops_manual:1
+미확인 사항: 사용량(문서 생성 수·로그인 횟수)
+</code></pre>
+<p>보류 답변에서 중요한 것은 "무엇이 확인되면 결론이 나는가"가 드러나는 것입니다. 담당자는 미확인 사항 한 줄을 보고 다음 행동(사용량 조회)을 알 수 있습니다. "확인이 필요합니다"라고만 쓰면 무엇을 확인할지 다시 생각해야 합니다.</p>
+<p>Q04처럼 요청 종류 자체가 불분명한 보류는 후보를 나열하고 구분 기준을 적습니다.</p>
+<pre><code>결론: 요청 종류를 먼저 확인해야 합니다. 결제 취소·해지·환불 중 무엇을 원하시는지에 따라 처리가 다릅니다.
+적용 조건: 결제 완료 후 24시간 이내라면 결제 취소(승인 취소, 환불 규정 미적용)가 가능합니다.
+  24시간이 지났다면 환불 규정이 적용되며, 해지는 다음 결제 주기부터 갱신을 중단하는 것으로 금액 반환이 없습니다.
+근거: terms_of_service:4.3, terms_of_service:4.1, ops_manual:4
+미확인 사항: 정확한 결제 시각(24시간 이내 여부), 원하는 처리(결제 취소·해지·환불)
+</code></pre>
+<h3 id="_4">프롬프트로 강제하는 것과 코드로 검사하는 것</h3>
+<p>여기까지의 형식은 전부 프롬프트가 시킨 것입니다. 답변 프롬프트에 네 부분의 이름을 적고, 보류면 단정하지 말라고 쓰고, 규칙이 낸 금액을 바꾸지 말라고 씁니다. pipeline.answer는 LLM이 돌려준 문장을 그대로 반환합니다. 즉 <strong>답변을 다시 읽고 형식 위반이면 되돌리는 후검증기는 아직 없습니다.</strong> 이 둘을 섞어 "검증한다"고 쓰면 없는 안전장치를 있다고 믿게 되므로 나누어 적습니다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>지금 어떻게 지켜지는가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>네 부분(결론·적용 조건·근거·미확인 사항)으로 쓴다</td>
+<td>프롬프트 지시</td>
+</tr>
+<tr>
+<td>자료 안의 조항만 인용한다</td>
+<td>프롬프트 지시</td>
+</tr>
+<tr>
+<td>보류면 결론을 단정하지 않는다</td>
+<td>프롬프트 지시</td>
+</tr>
+<tr>
+<td>규칙이 낸 금액을 바꾸지 않는다</td>
+<td>프롬프트 지시</td>
+</tr>
+</tbody>
+</table>
+<p>대신 사후에 대조할 재료는 코드가 남깁니다. cited_clauses가 답변 문장에서 조항 ID 형태의 문자열을 정규식으로 뽑고, 그 목록이 결과 JSONL의 cited 필드로 저장됩니다.</p>
+<pre><code class="language-python"># ch07/pipeline.py 발췌
+def cited_clauses(answer: str) -&gt; list[str]:
+    """답변 문장에서 실제로 인용된 조항 ID 를 뽑는다."""
+    text = answer or ""
+    out = []
+    for cid in known_clause_ids():        # DB 의 실제 ID 를 긴 것부터 정렬해 둔 목록
+        if cid in text and cid not in out:
+            out.append(cid)
+    # 짧은 ID 가 긴 ID 의 일부인 경우 제거 (refund_policy_v2:4 vs refund_policy_v2:4.1)
+    return [c for c in out if not any(c != o and c in o for o in out)]
+</code></pre>
+<p>처음에는 정규식으로 ID 모양을 찾았는데 곧 문제가 드러났습니다. FAQ와 요금 안내의 조항 ID는 "faq:결제와 구독"처럼 공백이 들어 있어서, 공백에서 끊는 정규식은 이것을 <code>faq:결제와</code>로 잘라냅니다. 정상 인용이 "자료 밖 인용"으로 오판되는 것입니다. 그래서 데이터베이스의 실제 ID 목록과 대조하는 방식으로 바꿨습니다.</p>
+<p>결과 한 줄에는 answer, status, evidence(시스템이 고른 근거), contexts(프롬프트에 실제로 들어간 조항), cited(답변이 인용한 조항), rules_fired, analysis가 함께 남습니다. 이 필드들만으로 지금 자동 검사할 수 있는 것과, 아직 코드가 없는 것을 나누면 다음과 같습니다.</p>
+<table>
+<thead>
+<tr>
+<th>검사</th>
+<th>필요한 필드</th>
+<th>지금 상태</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>자료 밖 조항을 인용했는가</td>
+<td>cited, contexts</td>
+<td>대조 가능. cited에 있는데 contexts에 없는 조항이 자료 밖 인용</td>
+</tr>
+<tr>
+<td>근거로 고른 조항을 답변이 빠뜨렸는가</td>
+<td>cited, evidence</td>
+<td>대조 가능. evidence에 있는데 cited에 없는 조항</td>
+</tr>
+<tr>
+<td>어떤 판단 경로를 거쳤는가</td>
+<td>decision_trace, rules_fired</td>
+<td>확인 가능. 결제 취소에서 환불로 넘어간 경로도 남음</td>
+</tr>
+<tr>
+<td>조회를 했는가, 결과가 비었는가</td>
+<td>facts</td>
+<td>구분 가능. 조회하지 않았으면 null, 했는데 결과가 없으면 빈 객체</td>
+</tr>
+<tr>
+<td>보류인데 단정했는가</td>
+<td>status, answer</td>
+<td>부분 가능. status가 hold인 행은 모을 수 있지만 "단정했는지"의 판정은 질문 세트의 금지 표현에 의존</td>
+</tr>
+<tr>
+<td>네 부분이 모두 있는가</td>
+<td>answer</td>
+<td>미구현. 문자열 존재 검사로 만들 수 있지만 검사 코드가 아직 없음</td>
+</tr>
+<tr>
+<td>금액이 규칙 판단과 같은가</td>
+<td>answer</td>
+<td>미구현. Verdict.amount가 결과 행에 따로 저장되지 않아 대조할 상대가 없음</td>
+</tr>
+</tbody>
+</table>
+<p><strong>cited가 비었다는 것은 "조항 ID 문자열을 찾지 못했다"는 뜻이지 "근거를 말하지 않았다"는 뜻이 아닙니다.</strong> 답변이 "환불 규정 제4조 제2항에 따라"처럼 한국어로 풀어 쓰면 ID 목록과 대조되지 않아 빈 목록이 됩니다. 위 검사들은 답변이 ID 형태로 인용했을 때만 성립하며, 프롬프트가 그렇게 지시하고 있으므로 대부분의 답변에서는 동작합니다. 그래도 빈 cited를 보면 "근거 없음"으로 단정하지 말고 답변을 직접 읽어야 합니다.</p>
+<p>이 대조가 보는 것은 답변의 "정확성"이 아니라 "규율"입니다. 규칙이 맞고 답변이 규칙을 그대로 옮겼다면 정확합니다. 규칙이 맞는데 답변이 바꿨다면 행동 제어 문제이고, 규칙이 틀렸다면 규칙 문제입니다. 어느 쪽인지 갈라 주므로 11-3의 개선 순환에서 무엇을 고칠지 정할 수 있습니다.</p>
+<p>질문 세트의 forbidden_facts(Q19의 "전액 환불합니다", Q02의 "14일이 현재 기준")는 형식 검사의 일부를 채점기 안에 미리 넣어 둔 것입니다. 보류인데 단정하거나 옛 판을 현재처럼 말하면 정답률에서 바로 드러납니다. 다만 이것은 질문마다 사람이 적어 둔 금지 표현이지 일반적인 형식 검증기는 아닙니다.</p>
+<h3 id="_5">답변에 넣지 않는 것</h3>
+<ul>
+<li><strong>내부 식별자.</strong> 규칙 ID(monthly_full_refund)나 테이블 이름은 담당자에게 의미가 없습니다. 조항 ID는 넣지만 규칙 ID는 넣지 않습니다. 규칙 ID는 결과 파일(rules_fired)에만 남깁니다.</li>
+<li><strong>확률이나 확신도.</strong> "약 80% 확률로 환불 가능"은 규정 판단에 어울리지 않습니다. 조건이 충족되면 가능이고, 확인이 안 되면 보류입니다.</li>
+<li><strong>다음 행동의 실행.</strong> 답변은 "승인자는 팀장입니다"까지만 말하고 승인 요청을 보내지 않습니다. 실행은 사람이 합니다. 이것도 에이전트 행동 제어의 일부이며, 규모가 커져 실행까지 자동화하더라도 승인 권한 규칙이 그 경계를 정합니다.</li>
+</ul>
+<h3 id="_6">정리</h3>
+<ul>
+<li>답변은 결론, 적용 조건, 근거, 미확인 사항 네 부분이며 각각 규칙 평가 결과의 특정 필드에서 옵니다.</li>
+<li>근거는 조항 ID를 그대로 쓰고, 프롬프트 안의 조항만 인용하며, 준용과 판 비교는 양쪽을 인용합니다.</li>
+<li>보류는 정답의 한 형태이고, 무엇이 확인되면 결론이 나는지를 미확인 사항에 적습니다.</li>
+<li>형식은 프롬프트가 강제하고 후검증기는 아직 없습니다. 다만 cited·contexts·evidence 필드가 저장되므로 지어낸 인용과 빠뜨린 근거는 결과 파일만으로 대조할 수 있습니다.</li>
+<li>다음 절에서 파이프라인 전체를 실행해 30개 질문의 결과를 봅니다.</li>
+</ul>
+</div></body></html>

@@ -1,0 +1,165 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>07-5. 실습: 작은 업무 답변 서비스 완성</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426515">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>07-5. 실습: 작은 업무 답변 서비스 완성</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">실습 환경</a></li>
+<li><a href="#1">실습 1: 질문 하나 따라가기</a></li>
+<li><a href="#2">실습 2: 보류가 정답인 질문</a></li>
+<li><a href="#3-30">실습 3: 30개 질문 채점</a></li>
+<li><a href="#4">실습 4: 남은 오답 살펴보기</a></li>
+<li><a href="#5">실습 5: 첫 실행에서 고친 것</a></li>
+<li><a href="#_2">관찰 포인트</a></li>
+<li><a href="#_3">더 해 보기</a></li>
+<li><a href="#_4">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> 핵심 환불·결제 취소 경로 실행 검수 완료(2026-09-08) · 파이프라인 전체에 대한 검수 완료는 아님 · ontology-tutorial 구성 4(ch07/pipeline.py) 실행 결과 기준 · PostgreSQL 16.2 + pgvector 0.6.2 · LLM 출력은 실행마다 조금씩 다를 수 있음</p>
+</blockquote>
+<p>7장에서 설계한 파이프라인을 처음부터 끝까지 실행합니다. 질문 하나를 넣어 분석·조회·규칙·근거·답변이 어떻게 이어지는지 보고, 30개 질문을 채점하고, 남은 오답을 살펴봅니다. 이 절의 결과가 8장에서 "구성 4"로 비교됩니다.</p>
+<h3 id="_1">실습 환경</h3>
+<ul>
+<li>6장의 실습을 마쳐 정형 테이블, 개념·조항·링크 테이블, 조항 임베딩이 모두 준비된 상태</li>
+<li>OpenAI API 키. 이 실측에는 사용자가 지정한 모델을 썼고, 해당 모델이 temperature를 받지 않아 공통 모듈이 자동으로 기본값으로 호출했습니다. 그래서 실행마다 답변 문장이 조금씩 다릅니다. 8-1에서 이 편차를 3회 실행으로 다룹니다.</li>
+<li>결과는 results 폴더에 저장되며 아래 출력은 1회차 실행의 것입니다.</li>
+</ul>
+<h3 id="1">실습 1: 질문 하나 따라가기</h3>
+<pre><code class="language-bash">python ch07/pipeline.py --ask "고객 C004가 오늘 환불을 요청하면 어떤 규정을 적용하고 얼마를 환불하나요?"
+</code></pre>
+<p>파이프라인은 먼저 질문을 분석해 요청 종류(Refund)와 고객 ID(C004)를 얻고, 정형 데이터를 조회한 뒤 규칙을 평가합니다. 규칙 층의 출력은 07-2에서 본 것과 같습니다. 결제일 2025-06-20으로 1판 대상, 두 판 비교, 2판이 유리하므로 약관 9조 3항 적용, 131,332원. 이 결과와 근거 조항 7개, 관련 개념 정의가 답변 프롬프트에 들어갑니다. 실제 답변입니다.</p>
+<pre><code>결론: 고객 C004에는 환불 규정 제2판을 적용하며, 131,332원을 환불합니다. 팀장 승인이 필요합니다.
+
+적용 조건: 결제 후 80일이 경과하여 30일을 초과한 요청입니다. 제2판이 고객에게 유리하므로
+약관 제9조 제3항을 적용하며, 잔여 284일을 일할 계산하고 연간 결제 할인 사용분을 환수합니다.
+
+근거: terms_of_service:2.2, refund_policy_v2:4.2, refund_policy_v2:4.4, terms_of_service:9.3,
+ops_manual:2.2, ops_manual:3
+
+미확인 사항: 없음
+</code></pre>
+<p>07-4에서 정한 네 부분이 그대로 나왔고, 인용된 조항은 모두 프롬프트에 넣은 것들입니다. 구성 3(08-3)이 같은 금액을 내고도 "왜 2판인가"를 설명하지 못한 것과 비교해 보시기 바랍니다. 차이는 규칙 층이 판 선택을 했고, 그 이유(notes)가 프롬프트에 들어갔다는 것뿐입니다. 이 질문 하나에 프롬프트 토큰 2,344, 완성 토큰 532, 11초가 들었습니다.</p>
+<h3 id="2">실습 2: 보류가 정답인 질문</h3>
+<pre><code class="language-bash">python ch07/pipeline.py --ask "고객 C007이 환불을 요청했습니다. 어떻게 처리하나요?"
+</code></pre>
+<pre><code>결론: 결제 후 6일 경과로 기간 요건은 충족했으나, 사용량 확인이 필요하여 환불 여부를 확정할 수 없습니다.
+해당 결제 주기의 문서 생성 수와 로그인 횟수를 확인한 후 처리하세요.
+
+적용 조건: 2025-07-01부터 적용된 환불 규정 제2판을 적용했습니다. 월간 구독이며 결제 완료일로부터
+7일 이내에 요청했으므로 기간 요건은 충족하지만, 미사용 여부는 문서 생성 0건 및 로그인 3회 이하인지
+확인해야 합니다.
+
+근거: terms_of_service:2.2, refund_policy_v2:3.1, refund_policy_v2:2.1
+
+미확인 사항: 해당 결제 주기의 새 문서 생성 수와 로그인 횟수
+</code></pre>
+<p>01-1의 오답 5(무엇을 알고 무엇을 모르는지 구분하지 못한 보류)와 대조됩니다. 기간 요건은 충족했다고 말하고, 확인할 것 하나만 남겼습니다. 이것이 규칙의 requires와 의미 모델의 "미확인 ≠ 미사용"이 만든 보류입니다.</p>
+<p>요청 종류가 불분명한 Q04("어제 결제했는데 취소하고 싶어요")도 보류로 처리되었습니다.</p>
+<pre><code>결론: 확인이 필요합니다. 어제 결제했다는 사실만으로는 결제 후 24시간 이내인지와 요청 종류를
+확정할 수 없습니다. 결제 취소라면 환불 규정은 적용되지 않고, 환불 요청이라면 환불 규정이 적용됩니다.
+...
+미확인 사항: 고객이 원하는 요청 종류(해지·환불·결제 취소)와 정확한 결제 일시
+</code></pre>
+<p>용어 사전이 "취소"의 후보 세 개를 분석 단계에 알려 주었기 때문에 파이프라인이 단정하지 않았습니다. 이 답변에서 한 가지 흠은 근거 줄에 "[hold]"라는 내부 표기가 섞여 나온 것입니다. 07-4의 형식 검사가 잡아야 할 종류의 문제이며, 프롬프트에 "판단 결과의 상태 표기는 인용하지 말 것"을 더하면 사라집니다.</p>
+<h3 id="3-30">실습 3: 30개 질문 채점</h3>
+<pre><code class="language-bash">python ch07/pipeline.py --eval
+</code></pre>
+<p>1회차 실행의 요약입니다(핵심어 정비 후 재채점 기준).</p>
+<pre><code>유형별 정답률
+  기준선 (-)  3/ 3
+  검색  (R)  0/ 1
+  데이터 (D) 11/11
+  의미  (M)  3/ 4
+  규칙  (K) 11/11
+  전체        28/30
+토큰 75,129 / 소요 219.3s / LLM 호출 60회
+</code></pre>
+<p>구성 3(24/30)에서 풀리지 않던 질문 중 Q19(보류), Q21(학생 인증 만료 예외), Q29(재점검 대상), Q14(판 선택 이유)가 풀렸습니다. 각각 requires, 준용·예외 규칙, 정형 조회와 규칙의 결합, 판 선택 규칙에 대응합니다.</p>
+<p>Q29의 답변은 이렇습니다.</p>
+<pre><code>결론: 환불 규정 제2판 시행으로 다시 점검해야 하는 기존 구독은 C004 1건입니다.
+
+적용 조건: 2025-06-30 이전에 결제된 유효 구독 중, 개정 규정이 고객에게 유리하게 적용될 수 있는
+구독을 재점검했습니다. C004는 위약금 폐지·30일 조항에 해당하며, C010은 전액 환불 기간 경과로
+제외되고 C012는 계정 정지로 환불 대상에서 제외됩니다.
+</code></pre>
+<p>구성 1~3이 "조건"만 말하던 질문에 "대상"을 답했습니다. subscriptions_paid_before로 후보를 가져오고 recheck_targets 규칙이 걸러낸 결과입니다.</p>
+<h3 id="4">실습 4: 남은 오답 살펴보기</h3>
+<table>
+<thead>
+<tr>
+<th>질문</th>
+<th>유형</th>
+<th>무엇이 빠졌나</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q09 학생 연간 환불 기준</td>
+<td>M</td>
+<td>30일·일할 계산까지 맞게 답했지만 "준용"이라는 근거를 말하지 않음. 실행에 따라 맞기도 함</td>
+</tr>
+<tr>
+<td>Q30 4조 개정 시 점검 문서</td>
+<td>R</td>
+<td>분석 단계가 "환불 규정 4조"를 조항 지목으로 인식하지 못해 재점검 대상 질문(Q29)처럼 처리</td>
+</tr>
+</tbody>
+</table>
+<p>Q30은 파이프라인의 약한 고리를 보여 줍니다. 분석 단계가 clause_hint를 채우면 impact_of가 FAQ와 운영 매뉴얼 2절을 찾아냅니다(06-4 실측). 그런데 LLM 분석이 그것을 채우지 않으면 뒤 단계가 아무리 준비되어 있어도 소용이 없습니다. 이 실측 뒤에 "환불 규정 N조" 같은 표현을 정규식으로 보정하는 코드를 분석 단계에 더했습니다. 식별자(고객 ID, 장애 ID)에 이미 쓰던 방식을 조항 지목에도 적용한 것입니다.</p>
+<p>Q09는 실행 편차의 예입니다. 같은 파이프라인이 어떤 실행에서는 "준용"을 말하고 어떤 실행에서는 말하지 않습니다. 근거 조항(6조 1항)은 매번 프롬프트에 들어가는데 답변이 그것을 인용할지는 LLM에 달려 있습니다. 답변 프롬프트에 "적용 근거가 다른 조항을 준용하는 것이면 준용 사실을 밝힐 것"을 더하면 안정될 것입니다. 8-1의 3회 실행이 이런 편차를 드러내는 장치입니다.</p>
+<h3 id="5">실습 5: 첫 실행에서 고친 것</h3>
+<p>이 결과는 한 번에 나온 것이 아닙니다. 첫 실행은 25/30이었고 다음을 고쳤습니다.</p>
+<table>
+<thead>
+<tr>
+<th>문제</th>
+<th>원인</th>
+<th>조치</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q09, Q30 오답</td>
+<td>검색이 조(6조, 4조) 단위 조항을 가져왔는데, 준용·인용 링크는 항(6.1, 4.1) 단위에 걸려 있어 따라가지 못함</td>
+<td>linked 함수가 조 ID를 받으면 그 항들의 링크도 함께 보도록 수정. 09-2에서 지적한 조↔항 소속 문제</td>
+</tr>
+<tr>
+<td>Q17 보류</td>
+<td>팀 요청자를 모르면 금액 계산 전에 보류</td>
+<td>예상액은 계산하고 "관리자 확인"을 미확인 사항으로 표시</td>
+</tr>
+<tr>
+<td>Q01, Q14 오답</td>
+<td>"전액을 환불", "제9조 제3항" 같은 표현 차이</td>
+<td>핵심어에 동의 표현 추가 (08-1)</td>
+</tr>
+</tbody>
+</table>
+<p>세 가지 모두 파이프라인 설계의 문제였지 LLM의 문제가 아니었습니다. 실행 결과를 보고 설계로 돌아가는 이 순환이 11-3의 주제입니다.</p>
+<div class="ad-wrapper markdown_tags">
+<script async="" crossorigin="anonymous" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9470517771012578"></script>
+<!-- markdown_tags -->
+<ins class="adsbygoogle" data-ad-client="ca-pub-9470517771012578" data-ad-format="false" data-ad-slot="4124294444" data-full-width-responsive="false" style="display:inline-block;width:300px;height:250px"></ins>
+<script>
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    </script>
+</div>
+<h3 id="_2">관찰 포인트</h3>
+<ul>
+<li><strong>금액이 있는 질문은 모두 정확합니다.</strong> 규칙이 계산하고 LLM은 옮기기만 하므로, 07-3의 "판단은 코드, 전달은 LLM" 분리가 그대로 결과에 나타납니다.</li>
+<li><strong>보류의 질이 달라졌습니다.</strong> 무엇이 확인되면 결론이 나는지가 미확인 사항 한 줄에 드러납니다.</li>
+<li><strong>약한 고리는 분석 단계입니다.</strong> 규칙과 조회가 완벽해도 분석이 요청 종류나 조항 지목을 놓치면 뒤가 동작하지 않습니다. 형식이 정해진 것은 정규식으로 보정하는 것이 맞습니다.</li>
+<li><strong>비용은 두 배입니다.</strong> 호출 60회, 토큰 75,129로 구성 3의 약 두 배입니다. 그 대가로 무엇을 얻었는지는 08-6에서 따집니다.</li>
+</ul>
+<h3 id="_3">더 해 보기</h3>
+<ul>
+<li>답변 프롬프트에 "판단 결과의 상태 표기([hold] 등)는 인용하지 말 것"과 "준용 사실을 밝힐 것"을 더하고 Q04, Q09만 다시 실행해 보세요.</li>
+<li>분석 단계를 정규식만으로 대체해 보세요. 요청 종류 판별이 어디서 무너지는지(Q03, Q04) 확인합니다.</li>
+<li>결과 파일에서 status가 hold인 답변만 골라 07-4의 형식 검사를 적용해 보세요.</li>
+</ul>
+<h3 id="_4">정리</h3>
+<ul>
+<li>파이프라인은 30개 중 28개를 맞혔고, 금액 질문은 모두 정확하며 보류 질문은 무엇을 확인할지 말합니다.</li>
+<li>남은 오답은 분석 단계의 인식 누락과 LLM의 인용 편차이며, 규칙·조회 층의 문제가 아닙니다.</li>
+<li>첫 실행에서 조↔항 링크 확장, 팀 요청자 처리, 핵심어를 고쳤고 그 순환이 운영(11장)의 모습입니다.</li>
+<li>다음 장에서 이 결과를 구성 1~3과 같은 저울에 올립니다.</li>
+</ul>
+</div></body></html>

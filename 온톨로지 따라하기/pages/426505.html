@@ -1,0 +1,184 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>06-1. 개념·관계를 테이블로: 설계 선택지 비교</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426505">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>06-1. 개념·관계를 테이블로: 설계 선택지 비교</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">무엇을 옮기는가</a></li>
+<li><a href="#a">선택지 A: 개념별 전용 테이블</a></li>
+<li><a href="#b">선택지 B: 개체·관계 범용 테이블</a></li>
+<li><a href="#c">선택지 C: 혼합</a></li>
+<li><a href="#_2">세 선택지 비교</a></li>
+<li><a href="#jsonb">JSONB를 어디에 쓰는가</a></li>
+<li><a href="#_3">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[검증]</strong> PostgreSQL 16.2 + pgvector 0.6.2 실측 기준 (스키마는 ontology-tutorial 저장소 ch06/ 기준)</p>
+</blockquote>
+<p>4장에서 만든 의미 모델(model.yaml)을 데이터베이스에 옮기는 방법은 하나가 아닙니다. 개념마다 전용 테이블을 만들 수도 있고, 개체와 관계를 담는 범용 테이블 두 개로 모든 것을 표현할 수도 있으며, 둘을 섞을 수도 있습니다. 이 절에서는 세 가지 선택지를 노트클라우드 사례로 나란히 놓고 질의 편의, 성능, 변경 용이성을 비교한 뒤, 이 책이 고른 방식과 그 이유를 설명합니다.</p>
+<h3 id="_1">무엇을 옮기는가</h3>
+<p>옮길 것은 두 층입니다.</p>
+<table>
+<thead>
+<tr>
+<th>층</th>
+<th>내용</th>
+<th>출처</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>업무 개체</td>
+<td>고객, 구독, 결제, 사용량, 장애, 팀 구성원</td>
+<td>회사가 이미 갖고 있던 운영 데이터 (structured/*.csv)</td>
+</tr>
+<tr>
+<td>의미 모델</td>
+<td>개념 정의, 관계 유형, 용어 사전, 규정 판, 조항, 조항 사이의 관계</td>
+<td>4·5장 산출물 (model.yaml, glossary.yaml, clause_links.yaml, docs/*.md)</td>
+</tr>
+</tbody>
+</table>
+<p>첫 번째 층은 온톨로지를 만들기 전에도 회사에 있던 것이고, 두 번째 층이 이 책에서 새로 더하는 것입니다. 둘을 같은 방식으로 저장할 필요는 없습니다. 이 점이 선택지를 정리하는 출발점입니다.</p>
+<h3 id="a">선택지 A: 개념별 전용 테이블</h3>
+<p>개념 하나가 테이블 하나가 되는 가장 익숙한 방식입니다. Customer는 customers 테이블, Subscription은 subscriptions 테이블이 되고, 관계는 외래 키가 됩니다.</p>
+<pre><code class="language-sql">CREATE TABLE subscriptions (
+    subscription_id  text PRIMARY KEY,
+    customer_id      text NOT NULL REFERENCES customers,   -- has_subscription
+    plan             text NOT NULL CHECK (plan IN ('basic','pro','team','student')),
+    billing_cycle    text NOT NULL CHECK (billing_cycle IN ('monthly','yearly')),
+    ...
+);
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>장점</th>
+<th>단점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SQL이 자연스럽고 조인이 빠르다</td>
+<td>개념이 추가될 때마다 테이블을 만들어야 한다</td>
+</tr>
+<tr>
+<td>CHECK, NOT NULL, 외래 키로 데이터 검증이 쉽다</td>
+<td>관계에 이름·방향·정의를 붙일 곳이 없다 (외래 키는 "가리킨다"만 말한다)</td>
+</tr>
+<tr>
+<td>기존 운영 DB를 그대로 쓸 수 있다</td>
+<td>"준용한다", "대체한다"처럼 개체가 아니라 조항 사이의 관계는 표현하기 어색하다</td>
+</tr>
+</tbody>
+</table>
+<p>02-2에서 본 대로, 이 방식은 저장 구조로는 충분하지만 의미 구조를 담을 자리가 없습니다.</p>
+<h3 id="b">선택지 B: 개체·관계 범용 테이블</h3>
+<p>모든 것을 "개체"와 "관계" 두 테이블로 표현하는 방식입니다. RDF의 트리플(주어·술어·목적어)과 같은 발상이라 트리플 방식이라고도 부릅니다.</p>
+<pre><code class="language-sql">CREATE TABLE entities (
+    entity_id  text PRIMARY KEY,
+    type       text NOT NULL,        -- 'Customer', 'Subscription', 'Clause', ...
+    props      jsonb NOT NULL
+);
+CREATE TABLE relations (
+    from_id  text REFERENCES entities,
+    rel      text NOT NULL,          -- 'has_subscription', 'supersedes', ...
+    to_id    text REFERENCES entities,
+    PRIMARY KEY (from_id, rel, to_id)
+);
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>장점</th>
+<th>단점</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>개념·관계가 늘어나도 스키마를 바꾸지 않는다</td>
+<td>속성이 jsonb 안에 있어 타입 검증·제약이 약하다</td>
+</tr>
+<tr>
+<td>관계에 이름이 있고 어떤 방향이든 같은 방식으로 탐색한다</td>
+<td>흔한 질의(고객의 현재 결제액)가 자기 조인 여러 번으로 길어진다</td>
+</tr>
+<tr>
+<td>그래프 탐색(재귀 CTE)에 바로 쓸 수 있다</td>
+<td>기존 운영 데이터를 전부 옮겨 담아야 하고, 그 과정에서 운영 시스템과 두 벌이 된다</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c">선택지 C: 혼합</h3>
+<p>업무 개체는 전용 테이블에 두고, 의미 모델과 규정은 범용 테이블에 둡니다. 이 책이 고른 방식입니다.</p>
+<pre><code>┌─ 전용 테이블 (선택지 A) ────────────────┐   ┌─ 범용 테이블 (선택지 B 성격) ───────────────┐
+│ customers  subscriptions  payments      │   │ concepts        relation_types             │
+│ usage_stats  incidents  team_members    │   │ glossary_terms  glossary_surface_forms     │
+│                                         │   │ policy_versions clauses  clause_links      │
+└─────────────────────────────────────────┘   └───────────────────────────────────────────┘
+          ▲ 운영 데이터 그대로                          ▲ 4·5장 산출물을 그대로 적재
+          └───────── 06-4의 조회 함수가 둘을 함께 씀 ──────────┘
+</code></pre>
+<p>이렇게 나눈 이유는 두 층의 성격이 다르기 때문입니다.</p>
+<ul>
+<li>업무 개체는 종류가 적고(6개) 잘 안 바뀌며, 흔한 질의가 정해져 있고, 타입 검증이 중요합니다. 전용 테이블이 맞습니다.</li>
+<li>의미 모델은 개념·관계 종류가 늘어나고, 관계에 이름과 방향이 있어야 하며, "이 조항을 인용하는 모든 것"처럼 역방향·다단계 탐색이 필요합니다. 범용 테이블이 맞습니다.</li>
+</ul>
+<p>범용 쪽에서도 완전한 트리플로 가지는 않았습니다. 조항은 clauses라는 전용 테이블에 두고, 조항 사이의 관계만 clause_links라는 간선 테이블로 두었습니다. 조항은 본문·임베딩·유효기간처럼 컬럼이 정해져 있어 전용 테이블이 낫고, 관계는 종류가 늘어날 수 있어 간선 테이블이 낫기 때문입니다.</p>
+<h3 id="_2">세 선택지 비교</h3>
+<table>
+<thead>
+<tr>
+<th>기준</th>
+<th>A 전용</th>
+<th>B 범용</th>
+<th>C 혼합 (이 책)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>흔한 업무 질의 (Q11 고객 환불액)</td>
+<td>조인 3개, 빠름</td>
+<td>자기 조인 5~6개</td>
+<td>조인 3개, 빠름</td>
+</tr>
+<tr>
+<td>의미 질의 (Q09 준용 조항 찾기)</td>
+<td>표현 불가</td>
+<td>간선 1~2단계</td>
+<td>clause_links 1~2단계</td>
+</tr>
+<tr>
+<td>영향 범위 (Q30 조항이 바뀌면)</td>
+<td>표현 불가</td>
+<td>재귀 CTE</td>
+<td>재귀 CTE (09-2)</td>
+</tr>
+<tr>
+<td>데이터 검증</td>
+<td>CHECK·외래 키</td>
+<td>코드로</td>
+<td>개체는 CHECK·외래 키, 링크는 적재 시 코드 검사</td>
+</tr>
+<tr>
+<td>개념 추가</td>
+<td>테이블 추가</td>
+<td>행 추가</td>
+<td>의미 모델 쪽은 행 추가</td>
+</tr>
+<tr>
+<td>기존 운영 DB와의 관계</td>
+<td>그대로</td>
+<td>복제 필요</td>
+<td>그대로 + 의미 층만 추가</td>
+</tr>
+</tbody>
+</table>
+<h3 id="jsonb">JSONB를 어디에 쓰는가</h3>
+<p>혼합 방식에서 jsonb는 두 곳에만 씁니다. concepts.attributes(개념의 속성 이름 목록)와, 필요하다면 개체의 부가 속성입니다. 속성 이름 목록은 조회 조건으로 쓰이지 않고 문서처럼 보여 주기만 하므로 jsonb가 알맞습니다. 반대로 결제일이나 금액처럼 조건·계산에 쓰이는 값은 반드시 정식 컬럼에 둡니다. "조건에 쓰이면 컬럼, 보여 주기만 하면 jsonb"가 판단 기준입니다.</p>
+<h3 id="_3">정리</h3>
+<ul>
+<li>옮길 것은 업무 개체와 의미 모델 두 층이고, 둘은 성격이 달라 같은 방식으로 저장할 필요가 없습니다.</li>
+<li>전용 테이블은 검증과 흔한 질의에 강하고, 범용 테이블은 관계 이름·방향·다단계 탐색에 강합니다.</li>
+<li>이 책은 혼합 방식을 씁니다. 운영 데이터는 그대로 두고 의미 층(개념·관계·용어·판·조항·링크)만 더합니다.</li>
+<li>다음 절에서 규정 판의 유효기간과 이력을 어떻게 모델링하는지 봅니다.</li>
+</ul>
+</div></body></html>

@@ -1,0 +1,163 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>07-1. 질문 분석: 어떤 개념과 조건이 필요한가</title><style>body{max-width:960px;margin:32px auto;padding:0 24px;font-family:system-ui,sans-serif;line-height:1.75;color:#222}pre{overflow:auto;padding:16px;background:#f5f5f5}code{font-family:Consolas,monospace}table{border-collapse:collapse;display:block;overflow:auto}th,td{border:1px solid #ccc;padding:8px}img,video{max-width:100%}a{color:#075aad}.archive-note{padding:12px;background:#eef5ff;border:1px solid #ccd9eb}blockquote{border-left:4px solid #bbb;margin-left:0;padding-left:16px}</style><body><aside class="archive-note"><a href="../index.html">목차</a> · 저자: 이창근 · <a href="https://wikidocs.net/426511">원문</a> · <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.ko">CC BY-NC-ND 4.0</a><br>비영리 열람용 사본. 본문은 변경하지 않았으며 표시 형식과 링크만 오프라인 열람에 맞췄습니다. 원본 HTML은 originals/에 보존했습니다.</aside><h1>07-1. 질문 분석: 어떤 개념과 조건이 필요한가</h1><div class="page-content tex2jax_process book-content-font-normal">
+<div class="toc">
+<ul>
+<li><a href="#_1">분석이 답해야 하는 것</a></li>
+<li><a href="#_2">용어 사전을 분석기에 주기</a></li>
+<li><a href="#_3">분석 프롬프트</a></li>
+<li><a href="#_4">정규식 보정</a></li>
+<li><a href="#_5">조회 계획</a></li>
+<li><a href="#_6">분석 결과의 구조 (작성 예시)</a></li>
+<li><a href="#_7">정리</a></li>
+</ul>
+</div>
+<blockquote>
+<p><strong>[참고]</strong> 파이프라인 설계 설명 — 코드는 ontology-tutorial ch07/pipeline.py 기준 (LLM 호출 결과는 07-5에서 실측)</p>
+</blockquote>
+<p>지식이 데이터베이스에 있어도 질문이 무엇을 묻는지 모르면 꺼낼 수 없습니다. 파이프라인의 첫 단계는 질문을 분석해 어떤 종류의 요청인지, 어떤 개체(고객·장애·조항)가 언급되었는지, 어떤 시점을 가정하는지를 뽑는 것입니다. 이 절에서는 분석 단계의 설계와, 용어 사전이 이 단계에서 하는 일을 봅니다.</p>
+<h3 id="_1">분석이 답해야 하는 것</h3>
+<p>질문 30개를 놓고 "답을 내기 위해 무엇을 먼저 알아야 하는가"를 정리하면 다음 항목이 나옵니다.</p>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>예</th>
+<th>왜 필요한가</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>요청 종류</td>
+<td>환불, 해지, 결제 취소, 좌석 변경, 장애 크레딧, 규정 질문, 영향 범위</td>
+<td>적용 규칙이 다르다 (rules.yaml의 request_type)</td>
+</tr>
+<tr>
+<td>고객 ID</td>
+<td>C004</td>
+<td>정형 데이터 조회</td>
+</tr>
+<tr>
+<td>장애 ID 또는 날짜</td>
+<td>INC-01, 2025-08-24</td>
+<td>장애 조회</td>
+</tr>
+<tr>
+<td>요청 시점</td>
+<td>"2025-07-10에 요청했다면" (Q15)</td>
+<td>오늘이 아닌 시점의 판단</td>
+</tr>
+<tr>
+<td>좌석 수</td>
+<td>5개에서 3개로</td>
+<td>좌석 규칙 입력</td>
+</tr>
+<tr>
+<td>요청자 역할</td>
+<td>구성원 팀원K1 (Q23)</td>
+<td>팀 요금제 자격</td>
+</tr>
+<tr>
+<td>결제 후 경과 시간</td>
+<td>12(시간), "어제 결제"(Q04)처럼 모호하면 null</td>
+<td>24시간 이내인지 판단</td>
+</tr>
+<tr>
+<td>관련 개념</td>
+<td>Unused, CancellationRequest</td>
+<td>컨텍스트에 넣을 정의</td>
+</tr>
+<tr>
+<td>지목한 조항</td>
+<td>환불 규정 4조 (Q30)</td>
+<td>영향 범위 탐색 시작점</td>
+</tr>
+</tbody>
+</table>
+<p>이 항목들은 곧 분석 결과의 JSON 스키마가 됩니다.</p>
+<h3 id="_2">용어 사전을 분석기에 주기</h3>
+<p>요청 종류를 판별하는 것이 가장 어렵습니다. "취소"가 해지인지 결제 취소인지, "돈이 돌아오나요"가 환불인지 해지 후 잔여 기간인지는 단어만으로 정해지지 않습니다. 이 판별에 4-2의 용어 사전을 씁니다. 분석기의 시스템 프롬프트에 용어 사전 전체를 넣고, 표현을 표준 개념으로 바꾸되 둘 이상에 해당하면 ambiguous로 표시하라고 지시합니다.</p>
+<pre><code class="language-python"># ch07/pipeline.py 발췌
+def glossary_text() -&gt; str:
+    lines = []
+    for t in GLOSSARY:
+        forms = ", ".join(f"'{f['form']}'({f['source']})" for f in t.get("surface_forms", []))
+        lines.append(f"- {t['canonical']} ({t['label']}): {t['definition']} | 표현: {forms}"
+                     + (f" | 혼동 주의: {', '.join(t['confusable_with'])}" if t.get("confusable_with") else ""))
+    return "\n".join(lines)
+</code></pre>
+<p>프롬프트에 들어가는 용어 사전의 한 줄은 이런 모습입니다.</p>
+<pre><code>- CancellationRequest (해지): 다음 결제 주기부터 구독을 갱신하지 않는 것. 금액 반환 없음.
+  | 표현: '해지'(약관 4조 1항 / 환불 규정 2판 2조 3항), '구독 취소'(FAQ ...), '취소해 주세요'(고객 발화 ...)
+  | 혼동 주의: RefundRequest, PaymentReversalRequest
+</code></pre>
+<p>이것이 "의미 모델을 LLM에 전달한다"는 말의 가장 구체적인 형태입니다. 개념의 정의, 문서별 표현, 혼동 관계를 텍스트로 넘기면 LLM은 그 안에서 분류합니다. 용어 사전 없이 분류하라고 하면 LLM은 자기가 아는 일반적인 뜻으로 분류하고, 그 뜻은 노트클라우드 약관의 뜻과 다를 수 있습니다.</p>
+<h3 id="_3">분석 프롬프트</h3>
+<pre><code>당신은 고객지원 질문을 구조화하는 분석기입니다. 반드시 JSON 만 출력합니다.
+아래 용어 사전을 기준으로 질문의 표현을 표준 개념으로 바꾸세요. 표현이 두 개 이상의 개념에 해당하고
+질문만으로 구분할 수 없으면 request_type 을 "ambiguous" 로 두고 candidates 에 후보를 적으세요.
+
+출력 형식:
+{
+  "request_type": "Refund | Cancellation | PaymentReversal | SeatChange | IncidentCredit | PolicyQuestion | ImpactAnalysis | ambiguous",
+  "candidates": ["..."],
+  "customer_id": "C001" | null,
+  "incident_id": "INC-01" | null,
+  "incident_date": "YYYY-MM-DD" | null,
+  "requested_at": "YYYY-MM-DD" | null,
+  "seats_new": 3 | null,
+  "requester_role": "admin | member | null",
+  "hours_since_payment": 12 | null,
+  "concepts": ["Unused", "CancellationRequest", ...],
+  "clause_hint": "refund_policy_v2:4" | null
+}
+</code></pre>
+<p><code>hours_since_payment</code>는 "시각을 아는가"를 묻는 불리언이 아니라 결제 후 경과 시간(시간 단위)입니다. "24시간 이내인가"는 규칙이 판단할 문제이고, 분석기는 판단에 필요한 값만 넘겨야 하기 때문입니다. 질문에 시각이 없거나 "어제"처럼 몇 시간인지 확정할 수 없으면 null로 둡니다. 값이 24 이하이면 승인 취소, 24를 넘으면 결제 취소가 아니라 환불 규정으로 넘기고, null이면 결제 시각을 확인해 달라는 보류가 됩니다. "안다/모른다"만 넘기면 48시간이 지난 요청도 승인 취소로 처리되므로, 값 자체를 넘겨야 합니다.</p>
+<p>JSON 모드로 호출하므로 출력은 항상 파싱 가능한 JSON입니다. 분석 결과는 LLM이 낸 것이지만, 이 단계의 LLM은 결론을 내지 않습니다. "무엇을 조회할지"만 정합니다. 결론은 다음 단계의 규칙 코드가 냅니다. 이 분리가 5-5에서 말한 에이전트 행동 제어의 첫 번째 장치입니다.</p>
+<h3 id="_4">정규식 보정</h3>
+<p>LLM이 고객 ID나 장애 ID를 놓치는 일이 있습니다. 형식이 정해진 식별자는 정규식이 더 확실하므로, 분석 결과에 ID가 비어 있으면 정규식으로 채웁니다. 이때 단어 경계 <code>\b</code>를 쓰면 안 됩니다. 한국어 질문에는 "C004가", "C004를", "C004의"처럼 조사가 바로 붙는데, 한글도 단어 문자로 취급되므로 <code>\bC0\d{2}\b</code>는 이런 문자열을 놓칩니다. 그래서 앞뒤를 영숫자로만 제한하는 전후방 탐색으로 바꿨습니다. 장애 ID도 같은 이유로 <code>(?&lt;![A-Za-z0-9])INC-\d{2}(?!\d)</code>를 씁니다.</p>
+<pre><code class="language-python"># ch07/pipeline.py 발췌
+m = re.search(r"(?&lt;![A-Za-z0-9])C0\d{2}(?!\d)", question)
+if m and not out.get("customer_id"):
+    out["customer_id"] = m.group()
+</code></pre>
+<p>반대로 요청 종류 판별은 정규식으로 하지 않습니다. 구성 3(08-3)은 "환불"이라는 단어가 있으면 환불 요청으로 보는 정규식 방식을 쓰는데, 그 방식은 Q03("해지하면 돈이 돌아오나요")처럼 환불이라는 단어 없이 환불을 묻거나, Q04("취소하고 싶어요")처럼 단어가 여러 뜻인 질문에서 틀립니다. 두 구성의 차이가 바로 이 지점에서 생깁니다.</p>
+<h3 id="_5">조회 계획</h3>
+<p>분석 결과가 나오면 무엇을 조회할지가 정해집니다.</p>
+<pre><code>request_type
+├─ ambiguous        → 확인 요청 (조회 없음)
+├─ PaymentReversal  → 경과 시간 24시간 이내면 승인 취소 / 초과면 환불 규정 / null 이면 보류
+├─ Cancellation     → 해지 규칙 (조회 없음)
+├─ SeatChange       → customer_context + 좌석 규칙
+├─ IncidentCredit   → incident + (customer_context) + 크레딧 규칙
+├─ ImpactAnalysis   → clause_hint 있으면 impact_of / 없으면 subscriptions_paid_before + 재점검 규칙
+├─ Refund           → customer_context + 환불 규칙 (판 선택·유리한 규정·보류 포함)
+└─ PolicyQuestion   → 하이브리드 검색 + 준용 링크 확장 (규칙 없음)
+</code></pre>
+<p>조회 계획이 코드에 고정되어 있다는 점을 눈여겨봐 주세요. LLM이 "어떤 함수를 호출할지"를 매번 결정하게 하는 도구 호출 방식과 달리, 이 파이프라인은 요청 종류별 조회 순서를 코드가 정합니다. 요청 종류가 8개뿐이라 고정해도 되고, 고정하면 실행마다 같은 조회가 일어나 8장의 비교가 안정됩니다. 07-3에서 두 방식을 비교합니다.</p>
+<h3 id="_6">분석 결과의 구조 (작성 예시)</h3>
+<p>Q14를 분석하면 다음과 같은 결과가 나오도록 설계했습니다. 아래는 형식을 보여 주는 작성 예시이며 실제 LLM 출력은 07-5에서 확인합니다.</p>
+<pre><code class="language-json">{
+  "request_type": "Refund",
+  "customer_id": "C004",
+  "requested_at": null,
+  "requester_role": null,
+  "concepts": ["RefundRequest", "PolicyVersion", "paid_at"],
+  "clause_hint": null
+}
+</code></pre>
+<p>Q04("어제 결제했는데 취소하고 싶어요")는 다음과 같아야 합니다.</p>
+<pre><code class="language-json">{
+  "request_type": "ambiguous",
+  "candidates": ["PaymentReversalRequest", "CancellationRequest", "RefundRequest"],
+  "hours_since_payment": null,
+  "concepts": ["PaymentReversalRequest", "CancellationRequest"]
+}
+</code></pre>
+<p>두 번째 결과가 나오면 파이프라인은 조회 없이 확인 요청을 냅니다. 요청 종류가 ambiguous이고, 설령 결제 취소로 확정되더라도 <code>hours_since_payment</code>가 null이라 24시간 조건을 계산할 수 없기 때문입니다. 이것이 Q04의 정답(보류)입니다.</p>
+<h3 id="_7">정리</h3>
+<ul>
+<li>분석 단계는 요청 종류·개체·시점·역할을 JSON으로 뽑으며, 결론은 내지 않습니다.</li>
+<li>용어 사전을 프롬프트에 넣어 표현을 표준 개념으로 바꾸고, 둘 이상에 해당하면 ambiguous로 둡니다.</li>
+<li>식별자는 정규식으로 보정하고, 요청 종류별 조회 계획은 코드에 고정합니다.</li>
+<li>다음 절에서 조회 계획에 따라 검색·SQL·규칙을 실행하는 파이프라인 본체를 봅니다.</li>
+</ul>
+</div></body></html>
