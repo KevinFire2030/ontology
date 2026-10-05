@@ -1,0 +1,3 @@
+[submodule "온톨로지 따라하기/ontology-tutorial"]
+	path = 온톨로지 따라하기/ontology-tutorial
+	url = https://github.com/ady95/ontology-tutorial.git

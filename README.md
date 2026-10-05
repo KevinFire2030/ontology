@@ -9,11 +9,23 @@ ontology 프로젝트 저장소입니다.
 ## 시작하기
 
 ```bash
-git clone https://github.com/KevinFire2030/ontology.git
+git clone --recurse-submodules https://github.com/KevinFire2030/ontology.git
 cd ontology
 ```
 
-아직 실행할 애플리케이션이나 설치할 의존성은 없습니다.
+이미 복제한 저장소에서 예제 코드를 받으려면 다음 명령을 실행하세요.
+
+```bash
+git submodule update --init --recursive
+```
+
+## 예제 코드
+
+- 경로: `온톨로지 따라하기/ontology-tutorial`
+- 원본: `https://github.com/ady95/ontology-tutorial.git`
+- 원본 Git 이력을 유지하는 **서브모듈**로 연결하며, 상위 저장소가 지정한 커밋을 사용합니다.
+- 원본 코드를 상위 저장소에 일반 파일로 복사한 방식이 아닙니다. ZIP 다운로드 대신 위의 재귀 복제 명령을 사용하세요.
+- 설치·실행 방법과 라이선스는 예제 저장소의 README 및 라이선스 파일을 확인하세요. 이번 작업에서는 예제의 의존성 설치나 실행을 하지 않았습니다.
 
 ## 구성
 
